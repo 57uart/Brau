@@ -34,7 +34,10 @@ struct SideBar: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            DragStrip(reserved: 0, below: rowsEnd)
+            // Not under the card for a new space, nor under the dots at the
+            // foot: neither is made of views that would take the click first.
+            DragStrip(reserved: 0, below: browser.makingSpace ? .greatestFiniteMagnitude : rowsEnd,
+                      footer: prefs.usesSpaces ? 46 : 0)
 
             // The band the lights sit in is this mode's title bar: the window
             // is dragged by it and a double-click fills the screen with it,
@@ -62,13 +65,32 @@ struct SideBar: View {
                 }
                 .frame(height: Metrics.strip)
 
-                if browser.pinnedCount > 0 {
-                    pinned
-                        .padding(.bottom, 10)
-                }
+                // The space's rows, following two fingers sideways to the next
+                // space — or, past the last, the card for a new one.
+                Group {
+                    if browser.makingSpace {
+                        // In the middle of the column, where the rows were.
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            NewSpaceCard(browser: browser)
+                            Spacer(minLength: 0)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxHeight: .infinity)
+                    } else {
+                        VStack(alignment: .leading, spacing: 0) {
+                            if browser.pinnedCount > 0 {
+                                pinned
+                                    .padding(.bottom, 10)
+                            }
 
-                loose
-                newTab
+                            loose
+                            newTab
+                        }
+                    }
+                }
+                .offset(x: browser.spaceSwipe)
+                .opacity(1 - min(0.7, abs(browser.spaceSwipe) / max(1, prefs.sideWidth)))
 
                 Spacer(minLength: 0)
             }
@@ -81,6 +103,9 @@ struct SideBar: View {
         }
         .frame(width: prefs.sideWidth)
         .frame(maxHeight: .infinity)
+        // Rows on their way to or from another space stay in the column.
+        .clipped()
+        .onAppear { SpaceSwipe.shared.start(for: browser) }
         .background(landing ? Palette.hover : Palette.ground)
         .overlay(alignment: .trailing) {
             Rectangle().fill(Palette.hairline).frame(width: 1)
@@ -331,7 +356,7 @@ struct SideBar: View {
     /// One small door at the bottom: the settings.
     private var foot: some View {
         HStack(spacing: 2) {
-            if browser.prefs.usesSpaces { SpaceDot(browser: browser) }
+            if browser.prefs.usesSpaces { SpaceDots(browser: browser) }
             ExtensionSlot(edge: .trailing)
             Door(icon: "bookmark", help: "Bookmarks") { browser.bookmarksOpen.toggle() }
                 .popover(isPresented: $browser.bookmarksOpen, arrowEdge: .trailing) {

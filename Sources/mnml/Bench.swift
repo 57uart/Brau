@@ -647,6 +647,28 @@ final class Bench {
                 window.contentView = nil
             }
 
+        case "column":
+            // The column of tabs, drawn off screen at its width, with what the
+            // browser has now — the rows, the card for a new space, the dots.
+            guard let path = request["path"] as? String else { answer(["error": "column needs a path"]); return }
+            let height = request["height"] as? Double ?? 600
+            let width = Double(browser.prefs.sideWidth)
+            let host = NSHostingView(rootView: SideBar(browser: browser, prefs: browser.prefs).frame(width: width, height: height))
+            host.frame = NSRect(x: 0, y: 0, width: width, height: height)
+            let window = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
+            window.appearance = NSApp.effectiveAppearance
+            window.contentView = host
+            host.layoutSubtreeIfNeeded()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                guard let picture = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { answer(["error": "nothing drawn"]); return }
+                host.cacheDisplay(in: host.bounds, to: picture)
+                do {
+                    try picture.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+                    answer(["saved": path])
+                } catch { answer(["error": error.localizedDescription]) }
+                window.contentView = nil
+            }
+
         case "space":
             // The spaces, and switching between them, for a test of what a
             // space keeps apart. Test runs only: it moves your tabs about.
@@ -655,6 +677,16 @@ final class Bench {
             case "new": browser.addSpace(named: request["name"] as? String ?? "Test")
             case "go": browser.switchSpace(index: (request["index"] as? Int ?? 1) - 1)
             case "delete": browser.deleteSpace(browser.spaceID)
+            case "swipe":
+                // Two fingers sideways over the column, as the swipe reads
+                // them — the trackpad's own events can't reach a probe in the back.
+                let dx = request["dx"] as? Double ?? -120
+                SpaceSwipe.shared.start(for: browser)
+                SpaceSwipe.shared.began()
+                for _ in 0..<12 { SpaceSwipe.shared.moved(dx: dx / 12, dy: 0) }
+                SpaceSwipe.shared.ended()
+            case "move":
+                if let index = request["index"] as? Int { browser.moveSpace(browser.spaceID, to: index - 1) }
             default: break
             }
             let out: [String: Any] = [
@@ -663,6 +695,8 @@ final class Bench {
                 "spaces": browser.spaces.map { ["name": $0.name, "id": $0.id.uuidString, "downloads": $0.downloads ?? ""] },
                 "parked": browser.parked.map { [$0.key.uuidString: $0.value.tabs.count] },
                 "tabs": browser.tabs.count,
+                "making": browser.makingSpace,
+                "swipe": Double(browser.spaceSwipe),
                 "pages": Web.pages.allObjects.map { $0.configuration.websiteDataStore.identifier?.uuidString ?? "default" },
             ]
             // And the stores WebKit keeps by identifier, a moment later —
@@ -717,7 +751,7 @@ final class Bench {
 
         default:
             answer(["error": "unknown command “\(verb)”", "commands": [
-                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "space", "strip", "ui",
+                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "space", "strip", "column", "ui",
             ]])
         }
     }

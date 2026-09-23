@@ -673,6 +673,10 @@ final class Browser: NSObject, ObservableObject {
     @Published var spaces = Spaces.read()
     @Published var spaceID = Space.firstID
     var parked: [UUID: Parked] = [:]
+    /// How far the column's rows have followed two fingers sideways, and
+    /// whether the card for a new space stands in for them (see SpaceSwipe).
+    @Published var spaceSwipe: CGFloat = 0
+    @Published var makingSpace = false
 
     // MARK: - beginning and ending
 

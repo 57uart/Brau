@@ -168,14 +168,36 @@ extension Browser {
         switchSpace(to: spaces[index].id)
     }
 
-    /// A new space, empty, and on screen.
-    func addSpace(named name: String) {
+    /// The colour a new space gets unless told: the first no space has yet.
+    var freeColour: Int {
         let used = Set(spaces.map(\.colour))
-        let colour = (0..<Spaces.colours.count).first { !used.contains($0) } ?? spaces.count % Spaces.colours.count
-        let made = Space(id: UUID(), name: name, colour: colour)
+        return (0..<Spaces.colours.count).first { !used.contains($0) } ?? spaces.count % Spaces.colours.count
+    }
+
+    /// A new space, empty, and on screen.
+    func addSpace(named name: String, colour: Int? = nil) {
+        makingSpace = false
+        let made = Space(id: UUID(), name: name, colour: colour ?? freeColour)
         spaces.append(made)
         Spaces.write(spaces)
         switchSpace(to: made.id)
+    }
+
+    /// Dragged to another place among the dots. ⌃1–⌃9 follow the order.
+    func moveSpace(_ id: UUID, to index: Int) {
+        guard let from = spaces.firstIndex(where: { $0.id == id }), spaces.indices.contains(index), from != index else { return }
+        spaces.move(fromOffsets: IndexSet(integer: from), toOffset: index > from ? index + 1 : index)
+        Spaces.write(spaces)
+    }
+
+    /// "New Space…": the card in the column when the column is there to
+    /// hold it, a question otherwise.
+    func askForSpace() {
+        if prefs.sidebar, !folded || peeking {
+            withAnimation(Motion.glide) { makingSpace = true }
+        } else {
+            Ask.name("New Space", placeholder: "Work", confirm: "Create") { self.addSpace(named: $0) }
+        }
     }
 
     func renameSpace(_ id: UUID, to name: String) {
@@ -280,9 +302,7 @@ enum SpaceMenu {
             })
         }
         menu.addItem(.separator())
-        menu.addItem(item("New Space…") {
-            Ask.name("New Space", placeholder: "Work", confirm: "Create") { browser.addSpace(named: $0) }
-        })
+        menu.addItem(item("New Space…") { browser.askForSpace() })
         menu.addItem(.separator())
         let here = browser.space
         menu.addItem(item("Rename “\(here.name)”…") {

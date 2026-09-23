@@ -740,6 +740,10 @@ struct ContentView: View {
                 browser.cancelTabEdit()
                 return true
             }
+            if browser.makingSpace {
+                withAnimation(Motion.glide) { browser.makingSpace = false }
+                return true
+            }
             if browser.tuning {
                 browser.tuning = false
                 return true
