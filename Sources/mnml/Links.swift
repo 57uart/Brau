@@ -144,7 +144,7 @@ final class Links: NSObject, NSApplicationDelegate {
     /// and SwiftUI — seeing a launch that came to open something rather than
     /// a plain one — leaves its window for that event to open. It never sees
     /// the event, so nothing opened it: every link clicked in another app
-    /// while Search was closed launched it with no window and the page
+    /// while mnml was closed launched it with no window and the page
     /// nowhere. SwiftUI's delegate is asked instead for what a plain launch
     /// gets, its window; a single window, so asking twice can't make two.
     @MainActor
@@ -162,8 +162,8 @@ final class Links: NSObject, NSApplicationDelegate {
         text.scheme = "mailto"
         text.path = "hello@officecommun.com"
         text.queryItems = [
-            URLQueryItem(name: "subject", value: "Search feedback — \(Updater.version) (\(Updater.build))"),
-            URLQueryItem(name: "body", value: "\n\n—\nSearch \(Updater.version), build \(Updater.build), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"),
+            URLQueryItem(name: "subject", value: "mnml feedback — \(Updater.version) (\(Updater.build))"),
+            URLQueryItem(name: "body", value: "\n\n—\nmnml \(Updater.version), build \(Updater.build), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"),
         ]
         guard let url = text.url else { return }
         NSWorkspace.shared.open(url)

@@ -14,8 +14,8 @@ import Security
 // newer.
 //
 // What the updater leaves alone, on purpose: everything in
-// ~/Library/Application Support/Search, the defaults under
-// com.officecommun.search, and the keychain. The session, the pins, the
+// ~/Library/Application Support/mnml, the defaults under
+// com.farchan.mnml, and the keychain. The session, the pins, the
 // history, the passwords — none of it is read, moved or rewritten here. Only
 // the bundle changes hands, and it keeps its bundle id and its signing
 // identity, so the keychain items the old build made open for the new one.
@@ -29,18 +29,15 @@ import Security
 final class Updater: ObservableObject {
     static let shared = Updater()
 
-    /// Where the file lives. SEARCH_FEED, for a test run, points somewhere
+    /// Where the file lives. MNML_FEED, for a test run, points somewhere
     /// else — and is the only way plain http is accepted, so a build that
     /// was not handed the variable only ever listens to the real site.
-    static let feed: URL = {
-        if let set = ProcessInfo.processInfo.environment["SEARCH_FEED"], let url = URL(string: set) {
-            return url
-        }
-        return URL(string: "https://officecommun.com/search/appcast.json")!
-    }()
+    // ponytail: no public feed yet, so updates are off unless MNML_FEED is set.
+    // Put mnml's own appcast URL back here once there is one.
+    static let feed: URL? = ProcessInfo.processInfo.environment["MNML_FEED"].flatMap(URL.init(string:))
 
     private static var overridden: Bool {
-        ProcessInfo.processInfo.environment["SEARCH_FEED"] != nil
+        ProcessInfo.processInfo.environment["MNML_FEED"] != nil
     }
 
     struct Release: Equatable {
@@ -184,8 +181,8 @@ final class Updater: ObservableObject {
         guard case .fetching(let fetching) = stage, fetching == release else { return }
         stage = worked ? .ready(release) : .offered(release)
         say?(worked
-            ? "Search \(release.version) is ready — it's there the next time you open it"
-            : "Search \(release.version) is out — it's in Settings")
+            ? "mnml \(release.version) is ready — it's there the next time you open it"
+            : "mnml \(release.version) is out — it's in Settings")
     }
 
     /// Quit, and come back as the new one. A shell waits for this process
@@ -208,7 +205,7 @@ final class Updater: ObservableObject {
     /// environment and a relaunch must not land on the real data.
     private static var reopen: [String] {
         var arguments = ["/usr/bin/open"]
-        for key in ["SEARCH_PROBE", "SEARCH_FEED"] {
+        for key in ["MNML_PROBE", "MNML_FEED"] {
             if let value = ProcessInfo.processInfo.environment[key] {
                 arguments += ["--env", "\(key)=\(value)"]
             }
@@ -217,6 +214,7 @@ final class Updater: ObservableObject {
     }
 
     private static func fetch() async -> Release? {
+        guard let feed else { return nil }
         var request = URLRequest(url: feed)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 12
@@ -287,7 +285,7 @@ private enum Swap {
         try files.createDirectory(at: scratch, withIntermediateDirectories: true)
         defer { try? files.removeItem(at: scratch) }
 
-        let zip = scratch.appendingPathComponent("Search.zip")
+        let zip = scratch.appendingPathComponent("mnml.zip")
         try await download(release.archive, to: zip)
         if let expected = release.sha256 {
             guard try digest(of: zip) == expected else { throw Refused.hash }

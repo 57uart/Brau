@@ -15,30 +15,30 @@ enum Store {
     /// once wrote over somebody's real session, and asking a person to
     /// remember a flag is not a safeguard.
     static var testing: Bool {
-        if ProcessInfo.processInfo.environment["SEARCH_PROBE"] != nil { return true }
+        if ProcessInfo.processInfo.environment["MNML_PROBE"] != nil { return true }
         return Bundle.main.executablePath?.contains("/.build/") == true
     }
 
-    /// Which test world a test run lives in. SEARCH_PROBE=1, or a run from
-    /// the build folder, is the test world, "Search (test)". SEARCH_PROBE=
-    /// <name> is a world of its own, "Search (<name>)", with settings and
+    /// Which test world a test run lives in. MNML_PROBE=1, or a run from
+    /// the build folder, is the test world, "mnml (test)". MNML_PROBE=
+    /// <name> is a world of its own, "mnml (<name>)", with settings and
     /// WebKit stores of its own: two sessions testing at once, or a
     /// measurement that needs a browser nobody has installed anything in,
     /// never borrow each other's. Nil for the browser somebody is using.
     static let world: String? = {
         guard testing else { return nil }
-        let asked = (ProcessInfo.processInfo.environment["SEARCH_PROBE"] ?? "").lowercased()
+        let asked = (ProcessInfo.processInfo.environment["MNML_PROBE"] ?? "").lowercased()
             .filter { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "-" }
         return asked.isEmpty || asked == "1" || asked == "test" ? "test" : asked
     }()
 
     /// A test run there to be weighed and timed rather than driven
-    /// (SEARCH_MEASURE beside SEARCH_PROBE). It keeps what the shipped
+    /// (MNML_MEASURE beside MNML_PROBE). It keeps what the shipped
     /// browser does where test runs otherwise differ — hidden pages slowed
     /// the way WebKit slows them, App Nap left to macOS — so what gets
     /// measured is what people get.
     static var measuring: Bool {
-        testing && ProcessInfo.processInfo.environment["SEARCH_MEASURE"] != nil
+        testing && ProcessInfo.processInfo.environment["MNML_MEASURE"] != nil
     }
 
     /// Cookies, sign-ins, caches. WebKit keeps its default store per bundle,
@@ -58,7 +58,7 @@ enum Store {
     /// differ from stores made by identifier in how long extension workers
     /// are let live.
     static var ownContainer: Bool {
-        (Bundle.main.bundleIdentifier ?? "") != "com.officecommun.search"
+        (Bundle.main.bundleIdentifier ?? "") != "com.farchan.mnml"
     }
 
     /// The fixed identifiers of a test world's WebKit stores: 1 for websites,
@@ -83,7 +83,7 @@ enum Store {
     static let folder: URL = {
         let support = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let home = support.appendingPathComponent(world.map { "Search (\($0))" } ?? "Search", isDirectory: true)
+        let home = support.appendingPathComponent(world.map { "mnml (\($0))" } ?? "mnml", isDirectory: true)
         if !testing {
             let old = support.appendingPathComponent("Office Browser", isDirectory: true)
             let files = FileManager.default
@@ -119,7 +119,7 @@ enum Store {
             carryOver(into: .standard)
             return .standard
         }
-        let suite = world == "test" ? "com.officecommun.search.test" : "com.officecommun.search.test.\(world ?? "")"
+        let suite = world == "test" ? "com.farchan.mnml.test" : "com.farchan.mnml.test.\(world ?? "")"
         return UserDefaults(suiteName: suite) ?? .standard
     }()
 

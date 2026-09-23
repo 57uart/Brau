@@ -8,10 +8,10 @@
   <key>com.apple.security.device.audio-input</key><true/>
   <!-- Passkeys, for any site. Apple grants this to browsers on request; it
        only works with the matching Developer ID provisioning profile
-       embedded in the app, which build.sh does when Search.provisionprofile
+       embedded in the app, which build.sh does when mnml.provisionprofile
        is next to it. The two identifiers are how macOS ties the app to that
        profile: without them the restricted entitlement is refused. -->
-  <key>com.apple.application-identifier</key><string>7BYKA895MC.com.officecommun.search</string>
+  <key>com.apple.application-identifier</key><string>7BYKA895MC.com.farchan.mnml</string>
   <key>com.apple.developer.team-identifier</key><string>7BYKA895MC</string>
   <key>com.apple.developer.web-browser.public-key-credential</key><true/>
 </dict>

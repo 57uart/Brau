@@ -58,7 +58,7 @@ struct ExtensionsPage: View {
                                     .disabled(Crx.id(in: link) == nil)
                             }
                         }
-                        Text("Or find it in the store and press Add to Search on its page.")
+                        Text("Or find it in the store and press Add to mnml on its page.")
                             .font(.system(size: 11.5))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
@@ -180,7 +180,7 @@ struct StoreOffer: View {
         @ObservedObject var extensions: Extensions
 
         var body: some View {
-            // Only where the page's own "Add to Search" isn't in place — a
+            // Only where the page's own "Add to mnml" isn't in place — a
             // store that has changed its markup still gets a way in.
             if let url = tab.address, StoreOffer.isStorePage(url), let id = Crx.id(in: url.absoluteString),
                tab.storePlaced != id, !extensions.installed.contains(where: { $0.id == id }) {
@@ -188,7 +188,7 @@ struct StoreOffer: View {
                     Image(systemName: "puzzlepiece.extension")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Palette.muted)
-                    Text(extensions.busy == id ? "Adding…" : "Add this extension to Search")
+                    Text(extensions.busy == id ? "Adding…" : "Add this extension to mnml")
                         .font(.system(size: 12.5))
                         .foregroundStyle(Palette.ink)
                     if extensions.busy == id {

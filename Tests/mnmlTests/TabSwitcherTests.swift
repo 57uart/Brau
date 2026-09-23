@@ -1,6 +1,6 @@
 import XCTest
 import AppKit
-@testable import Search
+@testable import mnml
 
 @MainActor
 final class TabSwitcherTests: XCTestCase {

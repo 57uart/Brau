@@ -280,7 +280,7 @@ final class Bench {
 
         case "select":
             // Picking a tab takes the window over, which the bench never does
-            // to someone using it: only on a SEARCH_PROBE run.
+            // to someone using it: only on a MNML_PROBE run.
             guard Store.testing else {
                 answer(["error": "select only works on a --test run — it would take your window over"])
                 return
@@ -372,7 +372,7 @@ final class Bench {
         case "key":
             // Keys pressed on a tab, as real key events handed to its view —
             // for what the page does with them, and what comes back unused.
-            // Only on a SEARCH_PROBE run: it types into a page.
+            // Only on a MNML_PROBE run: it types into a page.
             guard Store.testing else { answer(["error": "key only works on a --test run — it would type into your page"]); return }
             guard let tab = find(request, in: browser), let text = request["text"] as? String else { answer(missing(request)); return }
             house(tab)
@@ -408,7 +408,7 @@ final class Bench {
         case "resize":
             // The window taken to another size in steps, a frame apart, the
             // way a hand drags its corner — for what that does to the title
-            // bar. It moves the window, so only on a SEARCH_PROBE run.
+            // bar. It moves the window, so only on a MNML_PROBE run.
             guard Store.testing else {
                 answer(["error": "resize only works on a --test run — it would move your window"])
                 return

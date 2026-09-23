@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the Search you already have open, from the shell.
+"""Drive the mnml you already have open, from the shell.
 
     ./bench tabs                       every tab, yours and the bench's
     ./bench open URL                   a bench tab at the end of the row → its id
@@ -33,10 +33,10 @@
     ./bench ui KEY VALUE               settings/passwords/welcome/history/downloads/bookmarks/hidden on|off,
                                        look light|dark|system, sidebar on|off
 
-Needs Settings › General › "Let a script drive Search" switched on in the
+Needs Settings › General › "Let a script drive mnml" switched on in the
 running app. IDs are the first characters of a tab's id, as `tabs` prints
-them. With --test, talks to a SEARCH_PROBE run instead of the real one;
-with --world NAME, to a SEARCH_PROBE=NAME run, the world "Search (NAME)".
+them. With --test, talks to a MNML_PROBE run instead of the real one;
+with --world NAME, to a MNML_PROBE=NAME run, the world "mnml (NAME)".
 """
 
 import json
@@ -45,7 +45,7 @@ import socket
 import sys
 
 def folder(world):
-    name = f"Search ({world})" if world else "Search"
+    name = f"mnml ({world})" if world else "mnml"
     return os.path.expanduser(f"~/Library/Application Support/{name}")
 
 def ask(path, request):
@@ -53,8 +53,8 @@ def ask(path, request):
         try:
             s.connect(path)
         except (FileNotFoundError, ConnectionRefusedError):
-            sys.exit("Search isn't listening — is it open, with Settings › General › "
-                     "“Let a script drive Search” on?")
+            sys.exit("mnml isn't listening — is it open, with Settings › General › "
+                     "“Let a script drive mnml” on?")
         s.sendall((json.dumps(request) + "\n").encode())
         chunks = []
         while True:

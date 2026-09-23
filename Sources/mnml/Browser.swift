@@ -788,7 +788,7 @@ final class Browser: NSObject, ObservableObject {
             .sink { [weak self] on in
                 guard let self else { return }
                 if on { Bench.shared.start(for: self) } else { Bench.shared.stop() }
-                announce(on ? "Scripts can drive Search — see ./bench" : "The bench is closed")
+                announce(on ? "Scripts can drive mnml — see ./bench" : "The bench is closed")
             }
             .store(in: &bag)
 

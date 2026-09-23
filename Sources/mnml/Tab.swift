@@ -187,9 +187,9 @@ final class Tab: ObservableObject, Identifiable {
     /// download it and then, on at least some sites, does neither — see
     /// ImageMenu.swift for why this is built rather than patched.
     var onImageMenu: ((Tab, URL) -> Void)?
-    /// "Add to Search" was pressed on the Chrome Web Store page this tab shows.
+    /// "Add to mnml" was pressed on the Chrome Web Store page this tab shows.
     var onStoreAdd: ((Tab) -> Void)?
-    /// The extension whose store page has its own "Add to Search" button in
+    /// The extension whose store page has its own "Add to mnml" button in
     /// place — so the bar at the bottom of the window doesn't offer it twice.
     @Published var storePlaced: String?
 

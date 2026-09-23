@@ -25,4 +25,4 @@ Pull requests are reviewed by Drice, usually with Claude Code doing a first pass
 
 ## Reporting a bug
 
-Open an issue with: what you did, what you expected, what happened instead, and your macOS version. A crash log, if there is one, lives at `~/Library/Application Support/Search/crash.log` — it only ever stays on your Mac unless you paste it into the issue yourself.
+Open an issue with: what you did, what you expected, what happened instead, and your macOS version. A crash log, if there is one, lives at `~/Library/Application Support/mnml/crash.log` — it only ever stays on your Mac unless you paste it into the issue yourself.

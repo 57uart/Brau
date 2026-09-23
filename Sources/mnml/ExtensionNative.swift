@@ -7,7 +7,7 @@ import WebKit
 //
 // Those apps register with Chrome by leaving a small JSON file in Chrome's
 // NativeMessagingHosts folder: a name, the program to run, and which
-// extensions may run it. Search reads the same files, runs the same program
+// extensions may run it. mnml reads the same files, runs the same program
 // with the same argument, and speaks the same protocol — each message a
 // four-byte length and a line of JSON, over the program's stdin and stdout.
 // A host that lists the extension's id among its allowed origins is run;

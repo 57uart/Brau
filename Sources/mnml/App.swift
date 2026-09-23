@@ -5,13 +5,13 @@ import AppKit
 // there is nothing else to learn and nothing else to press.
 
 @main
-struct SearchApp: App {
+struct MnmlApp: App {
     @StateObject private var browser = Browser()
     /// Links from other apps, and the Dock icon.
     @NSApplicationDelegateAdaptor(Links.self) private var links
 
     var body: some Scene {
-        Window("Search", id: "browser") {
+        Window("mnml", id: "browser") {
             ContentView(browser: browser)
                 .frame(minWidth: 640, minHeight: 420)
         }

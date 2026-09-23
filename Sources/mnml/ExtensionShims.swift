@@ -27,8 +27,8 @@ enum ExtensionShims {
     static let application = "search"
     static let file = "search-shim.js"
     /// The first line of a worker that already carries the shim.
-    static let marker = "/* Search: Chrome APIs WebKit lacks, filled in (ExtensionShims.swift) */"
-    static let ender = "/* Search: end of shim */"
+    static let marker = "/* mnml: Chrome APIs WebKit lacks, filled in (ExtensionShims.swift) */"
+    static let ender = "/* mnml: end of shim */"
 
     // MARK: - at install
 
@@ -55,7 +55,7 @@ enum ExtensionShims {
         // Native messaging is how the shim reaches the browser; user scripts
         // are carried out through WebKit's registered content scripts, which
         // need scripting. What is added is written down, so the extension is
-        // described by what it asked for, not by what Search gave it.
+        // described by what it asked for, not by what mnml gave it.
         var permissions = manifest["permissions"] as? [Any] ?? []
         let asked = Set(permissions.compactMap { $0 as? String })
         var added = (try? JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent(".search-added")))) as? [String] ?? []
@@ -77,7 +77,7 @@ enum ExtensionShims {
                 let path = folder.appendingPathComponent(worker.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
                 if var source = try? String(contentsOf: path, encoding: .utf8) {
                     // Already carrying one: take the old one off, so a newer
-                    // Search puts its newer shim in its place.
+                    // mnml puts its newer shim in its place.
                     if source.hasPrefix(marker), let end = source.range(of: ender) {
                         source = String(source[end.upperBound...]).trimmingPrefix("\n").description
                     }
@@ -287,7 +287,7 @@ enum ExtensionShims {
         InstallEvent.prototype.addRoutes = () => Promise.resolve();
       }
       // WebKit gives a worker the user agent of the last web page that set
-      // one — Safari's, as Search's tabs send — not the Chrome one the
+      // one — Safari's, as mnml's tabs send — not the Chrome one the
       // extension's pages have. Code that picks its path by it then takes
       // the Safari one: Bitwarden's asks a Safari app for a reply thousands
       // of times a second and floods the browser.
@@ -516,7 +516,7 @@ enum ExtensionShims {
       // it can't: a rejection, or lastError for a callback.
       const refuse = (what) => (...args) => {
         const callback = args.length && typeof args[args.length - 1] === "function" ? args.pop() : null;
-        const error = new Error(what + " isn't available in Search");
+        const error = new Error(what + " isn't available in mnml");
         if (!callback) return Promise.reject(error);
         withLastError(error, callback);
       };
@@ -595,7 +595,7 @@ enum ExtensionShims {
         deleteID: refuse("instanceID.deleteID"), deleteToken: refuse("instanceID.deleteToken"),
         getCreationTime: refuse("instanceID.getCreationTime"), onTokenRefresh: event() });
       // Rules that show a button on matching pages: every button is always
-      // shown in Search, so there is nothing for them to do.
+      // shown in mnml, so there is nothing for them to do.
       const rules = () => ({ addRules: (r, cb) => { if (cb) cb(r || []); }, removeRules: (i, cb) => { if (cb) cb(); },
         getRules: (i, cb) => { const f = typeof i === "function" ? i : cb; if (f) f([]); } });
       put2("declarativeContent", { onPageChanged: rules(),
@@ -662,7 +662,7 @@ enum ExtensionShims {
         ContextType: { TAB: "TAB", POPUP: "POPUP", BACKGROUND: "BACKGROUND", OFFSCREEN_DOCUMENT: "OFFSCREEN_DOCUMENT",
           SIDE_PANEL: "SIDE_PANEL", DEVELOPER_TOOLS: "DEVELOPER_TOOLS" },
       });
-      // The popup Search shows is a page of its own, known to WebKit as a
+      // The popup mnml shows is a page of its own, known to WebKit as a
       // tab with no place in the row (no index). Chrome has no current
       // tab in a popup, and lists it among the popup views; extensions lay
       // themselves out by that (Bitwarden, Proton Pass: or else they fill
@@ -814,7 +814,7 @@ enum ExtensionShims {
         StyleOrigin: { AUTHOR: "AUTHOR", USER: "USER" },
       });
       // The popup an extension sets for its button, told to the browser too:
-      // Search opens a popup itself (see Extensions.press), and has to know
+      // mnml opens a popup itself (see Extensions.press), and has to know
       // which page it is now.
       for (const name of ["action", "browserAction"]) {
         const a = chrome[name];
@@ -871,7 +871,7 @@ enum ExtensionShims {
 
       // Rules WebKit can't carry out — a header it doesn't know how to set,
       // say — are refused one by one, where Chrome would take them all. The
-      // rest still go in: one rule Search can't honour shouldn't cost an
+      // rest still go in: one rule mnml can't honour shouldn't cost an
       // extension every other rule, or its startup.
       const dnr = chrome.declarativeNetRequest;
       // Before WebKit sees them, rules are put the way it takes them: a
@@ -925,7 +925,7 @@ enum ExtensionShims {
         });
       }
 
-      // Context menu entries for places Search has no menu for — the old
+      // Context menu entries for places mnml has no menu for — the old
       // toolbar button contexts are the button's menu now, and there is no
       // app launcher at all.
       for (const name of ["contextMenus", "menus"]) {
@@ -971,7 +971,7 @@ enum ExtensionShims {
       }
 
       // Tabs as Chrome describes them. Every tab has a groupId (-1 when in
-      // no group — Search has none), which code tests before anything else;
+      // no group — mnml has none), which code tests before anything else;
       // and with the "tabs" permission an extension sees every tab's address
       // and title, where WebKit shows them only for sites it has host
       // access to.
@@ -1032,8 +1032,8 @@ enum ExtensionShims {
       }
 
       // Permissions. WebKit knows its own and throws on any other name,
-      // where Chrome answers false. The ones Search answers itself are
-      // Search's to grant: those a manifest names are granted, optional
+      // where Chrome answers false. The ones mnml answers itself are
+      // mnml's to grant: those a manifest names are granted, optional
       // ones are asked for.
       if (chrome.permissions) {
         const webkit = new Set(["activeTab", "alarms", "clipboardWrite", "contextMenus", "cookies", "declarativeNetRequest",
@@ -1806,7 +1806,7 @@ enum ExtensionShims {
 
     static func answer(_ message: Any, from context: WKWebExtensionContext, owner: Extensions) async throws -> Any? {
         guard let body = message as? [String: Any], let api = body["api"] as? String else {
-            return ["error": "Not a Search message"]
+            return ["error": "Not a mnml message"]
         }
         let args = body["args"] as? [Any] ?? []
         do {
@@ -1962,7 +1962,7 @@ enum ExtensionShims {
         case "downloads.erase":
             return []
         case "downloads.pause", "downloads.resume", "downloads.cancel", "downloads.removeFile", "downloads.getFileIcon":
-            throw Unsupported(what: "\(api) isn't available in Search yet")
+            throw Unsupported(what: "\(api) isn't available in mnml yet")
 
         // MARK: side panel — a tab of its own, since this window has one column
         case "sidePanel.setOptions":
@@ -2170,7 +2170,7 @@ enum ExtensionShims {
             try JSONSerialization.data(withJSONObject: worlds).write(to: url, options: .atomic)
             return nil
 
-        // MARK: permissions Search grants itself
+        // MARK: permissions mnml grants itself
         case "permissions.granted":
             return Store.settings.stringArray(forKey: "extensions.granted.\(id)") ?? []
         case "permissions.request":
@@ -2239,7 +2239,7 @@ enum ExtensionShims {
             if let old = awake[id] { IOPMAssertionRelease(old) }
             var assertion: IOPMAssertionID = 0
             let kind = (display ? kIOPMAssertionTypePreventUserIdleDisplaySleep : kIOPMAssertionTypePreventUserIdleSystemSleep) as CFString
-            if IOPMAssertionCreateWithName(kind, IOPMAssertionLevel(kIOPMAssertionLevelOn), "An extension in Search" as CFString, &assertion) == kIOReturnSuccess {
+            if IOPMAssertionCreateWithName(kind, IOPMAssertionLevel(kIOPMAssertionLevelOn), "An extension in mnml" as CFString, &assertion) == kIOReturnSuccess {
                 awake[id] = assertion
             }
             return nil
@@ -2248,7 +2248,7 @@ enum ExtensionShims {
             return nil
         case "power.reportActivity":
             var assertion: IOPMAssertionID = 0
-            IOPMAssertionDeclareUserActivity("An extension in Search" as CFString, kIOPMUserActiveLocal, &assertion)
+            IOPMAssertionDeclareUserActivity("An extension in mnml" as CFString, kIOPMUserActiveLocal, &assertion)
             return nil
 
         // MARK: browsing data
@@ -2302,7 +2302,7 @@ enum ExtensionShims {
         case "readingList.query":
             return []
         case "readingList.addEntry", "readingList.removeEntry", "readingList.updateEntry":
-            throw Unsupported(what: "Search has no reading list")
+            throw Unsupported(what: "mnml has no reading list")
 
         // MARK: system
         case "system.cpu.getInfo":
@@ -2325,7 +2325,7 @@ enum ExtensionShims {
         case "tabGroups.query":
             return []
         case "tabGroups.get", "tabGroups.update", "tabGroups.move":
-            throw Unsupported(what: "Search has no tab groups")
+            throw Unsupported(what: "mnml has no tab groups")
 
         // MARK: identity
         case "identity.launchWebAuthFlow":
@@ -2340,7 +2340,7 @@ enum ExtensionShims {
             throw Unsupported(what: "getAuthToken needs a Google account signed into Chrome; this extension would need launchWebAuthFlow instead")
 
         default:
-            throw Unsupported(what: "\(api) isn't available in Search")
+            throw Unsupported(what: "\(api) isn't available in mnml")
         }
     }
 
@@ -2378,7 +2378,7 @@ enum ExtensionShims {
           const browser = chrome;
         """#
         let text = #"""
-        /* Search: a user script (chrome.userScripts) */
+        /* mnml: a user script (chrome.userScripts) */
         search_user_script: {
           const __searchHref = location.href;
           const __searchGlob = (g) => new RegExp("^" + g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
@@ -2403,7 +2403,7 @@ enum ExtensionShims {
     static var awake: [String: IOPMAssertionID] = [:]
 
     /// chrome.privacy and chrome.proxy: what each extension set, kept across
-    /// launches as Chrome keeps it. Search acts on one of them — an
+    /// launches as Chrome keeps it. mnml acts on one of them — an
     /// extension turning the browser's own offer to save passwords off,
     /// which is how every password manager asks Chrome to step aside.
     private static func setting(_ api: String, _ details: [String: Any], extension id: String, owner: Extensions) -> Any? {
@@ -2437,7 +2437,7 @@ enum ExtensionShims {
         }
     }
 
-    /// chrome.browsingData, from what WebKit and Search keep.
+    /// chrome.browsingData, from what WebKit and mnml keep.
     private static func clear(_ what: [String: Bool], options: [String: Any], browser: Browser) async throws {
         let since = Date(timeIntervalSince1970: (options["since"] as? Double ?? 0) / 1000)
         let origins = (options["origins"] as? [String])?.compactMap { URL(string: $0)?.host() }

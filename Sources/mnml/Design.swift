@@ -136,7 +136,7 @@ enum Motion {
     static let quick = Animation.easeOut(duration: 0.14)
 }
 
-/// Search's mark — Drice's Subtract.svg, a pill with an S cut out of it,
+/// mnml's mark — Drice's Subtract.svg, a pill with an S cut out of it,
 /// read from its own path data rather than loaded from a file, so it stays a
 /// crisp vector at any size. No plate, no square behind it: the mark draws exactly
 /// what the source file has and nothing it doesn't, the way every other icon

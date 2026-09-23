@@ -77,10 +77,10 @@ final class Extensions: NSObject, ObservableObject {
     static var folder: URL { Store.folder.appendingPathComponent("Extensions", isDirectory: true) }
 
     /// An extension's pages are served from chrome-extension://<id>/, the
-    /// address they have in Chrome — Search uses the same ids. Servers allow
+    /// address they have in Chrome — mnml uses the same ids. Servers allow
     /// their own extension in by that origin (Raindrop's refuses any other),
     /// and sites look for an extension at it. WebKit's own
-    /// webkit-extension:// is what Search used before; addresses kept from
+    /// webkit-extension:// is what mnml used before; addresses kept from
     /// then are read as the new ones.
     static let scheme = "chrome-extension"
     static let formerScheme = "webkit-extension"
@@ -216,7 +216,7 @@ final class Extensions: NSObject, ObservableObject {
 
     @discardableResult
     private func load(_ item: Installed) async -> Bool {
-        // The shim this build of Search carries, in place of whatever the
+        // The shim this build of mnml carries, in place of whatever the
         // build that installed it carried.
         try? ExtensionShims.prepare(Extensions.folder(for: item.id))
         do {
@@ -490,7 +490,7 @@ final class Extensions: NSObject, ObservableObject {
 
     /// Chrome asks the first time an extension's page takes the place of
     /// the new tab — an extension that did it quietly could be anything.
-    /// So does Search, and then shows the page in the tab just opened.
+    /// So does mnml, and then shows the page in the tab just opened.
     func offerNewTabPage(into tab: Tab) {
         guard let (id, url) = newTabCandidate, Store.settings.object(forKey: "extensions.newtab.\(id)") == nil,
               let name = installed.first(where: { $0.id == id })?.name else { return }
@@ -607,7 +607,7 @@ final class Extensions: NSObject, ObservableObject {
     /// What an extension wants, in words.
     static func describe(_ found: WKWebExtension, in folder: URL) -> [String] {
         var out: [String] = []
-        // Leaving out what Search itself added to the manifest.
+        // Leaving out what mnml itself added to the manifest.
         let added = Set((try? JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent(".search-added")))) as? [String] ?? [])
         let declared = Set(((try? JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("manifest.json")))) as? [String: Any])?["permissions"] as? [String] ?? [])
         let patterns = found.allRequestedMatchPatterns
@@ -630,7 +630,7 @@ final class Extensions: NSObject, ObservableObject {
         for (permission, sentence) in words where found.requestedPermissions.contains(permission) && !added.contains(permission.rawValue) {
             out.append(sentence)
         }
-        // Chrome's own, which Search answers itself.
+        // Chrome's own, which mnml answers itself.
         let ours: [(String, String)] = [
             ("userScripts", "Run scripts you add to it on websites"), ("history", "Read and change your history"),
             ("bookmarks", "Read and change your bookmarks"), ("downloads", "Manage your downloads"),
@@ -643,14 +643,14 @@ final class Extensions: NSObject, ObservableObject {
 
     private func ask(install name: String, wants: [String], icon: NSImage?) async -> Bool {
         await ask(
-            "Add “\(name)” to Search?",
+            "Add “\(name)” to mnml?",
             detail: wants.isEmpty ? "It doesn't ask for anything special." : "It will be able to:\n• " + wants.joined(separator: "\n• "),
             icon: icon, yes: "Add Extension", no: "Cancel"
         )
     }
 
     /// An extension asking, through permissions.request, for one of the
-    /// permissions Search answers itself.
+    /// permissions mnml answers itself.
     func ask(more names: String, context: WKWebExtensionContext) async -> Bool {
         await ask("asks for more access", detail: names, context: context)
     }
@@ -743,7 +743,7 @@ final class Extensions: NSObject, ObservableObject {
         }
         // A popup is opened here, straight away. Left to WebKit, it builds
         // a popup of its own first, and closing that one in favour of
-        // Search's lost the new popup's first messages to its worker.
+        // mnml's lost the new popup's first messages to its worker.
         if context.action(for: activeAdapter)?.presentsPopup == true, let url = popupURL(for: context) {
             let own = anchors[id]?.view
             ExtensionPopup.shared.show(url, for: context, from: own?.window != nil ? own : anchors[Extensions.menuAnchor]?.view)
@@ -823,7 +823,7 @@ extension Extensions: WKWebExtensionControllerDelegate {
         // script in one — often with nobody having touched anything. Chrome
         // never asks there: the extension has the sites its manifest named,
         // the page it was clicked on (activeTab), and the ones it asked for
-        // through permissions.request. So neither does Search.
+        // through permissions.request. So neither does mnml.
         asked.append("(refused) \(extensionContext.webExtension.displayName ?? "?") → \(Set(urls.compactMap { $0.host() }).sorted().joined(separator: ", "))")
         return ([], nil)
     }
