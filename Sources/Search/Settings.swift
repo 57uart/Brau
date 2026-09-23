@@ -201,6 +201,13 @@ struct SettingsPanel: View {
                 Segmented(options: Glyph.allCases.map { ($0, $0.title) }, selection: $prefs.glyph)
             }
             Rule()
+            Line("Recently used tab switcher", "Control-Tab previews up to ten recent tabs. Use Tab or arrow keys while holding Control; release it to switch.") {
+                Switch(on: $prefs.mruSwitcher)
+                    .accessibilityRepresentation {
+                        Toggle("Recently used tab switcher", isOn: $prefs.mruSwitcher)
+                    }
+            }
+            Rule()
             Line("Sleep tabs you aren't using", "After half an hour away they come back where you left them. Pinned tabs, sound, calls and anything typed stay awake.") {
                 Switch(on: $prefs.sleepsTabs)
             }

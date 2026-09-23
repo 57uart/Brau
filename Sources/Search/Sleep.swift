@@ -104,6 +104,7 @@ extension Browser {
                     return
                 }
                 tab.sleep(picture: picture)
+                if self.prefs.mruSwitcher { self.tabSwitcher.rememberPreview(of: tab) }
                 done?("asleep")
             }
         }

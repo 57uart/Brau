@@ -55,6 +55,10 @@ final class Preferences: ObservableObject {
     @Published var sleepsTabs: Bool {
         didSet { store.set(sleepsTabs, forKey: "tabs.sleep") }
     }
+    /// Control-Tab's recently used switcher. On unless turned off.
+    @Published var mruSwitcher: Bool {
+        didSet { store.set(mruSwitcher, forKey: "tabs.mru") }
+    }
     /// The ad blocker. On unless turned off; there is nothing else to it.
     @Published var shielded: Bool {
         didSet { store.set(shielded, forKey: "shield") }
@@ -124,6 +128,7 @@ final class Preferences: ObservableObject {
         sideWidth = min(Metrics.sideMax, max(Metrics.sideMin, CGFloat(width)))
         glyph = store.string(forKey: "glyph").flatMap(Glyph.init) ?? .letters
         sleepsTabs = store.object(forKey: "tabs.sleep") as? Bool ?? true
+        mruSwitcher = store.object(forKey: "tabs.mru") as? Bool ?? true
         shielded = store.object(forKey: "shield") as? Bool ?? true
         // Offered by default only in a build that can actually do them —
         // one with Apple's browser entitlement and its profile embedded. A

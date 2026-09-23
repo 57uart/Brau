@@ -371,6 +371,7 @@ struct ContentView: View {
             .overlay(alignment: .bottom) { bars }
             .overlay { field }
             .overlay { panels }
+            .overlay { TabSwitcherOverlay(browser: browser, switcher: browser.tabSwitcher) }
             .animation(Motion.settle, value: browser.fieldShowing)
             .background(WindowSetup { window = $0; dress($0) })
             .onChange(of: browser.prefs.sidebar) { _, _ in
@@ -380,8 +381,12 @@ struct ContentView: View {
             // buttons, and on a light window they come out nearly white. Ours
             // go on in their place until the app comes back.
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+                browser.tabSwitcher.cancel()
                 measureLights()
                 resting?.isHidden = false
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
+                if let window, (note.object as? NSWindow) === window { browser.tabSwitcher.cancel() }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 resting?.isHidden = true
@@ -628,6 +633,9 @@ struct ContentView: View {
         guard keys == nil else { return }
         keys = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             guard event.type == .keyDown else {
+                if browser.tabSwitcher.active, !event.modifierFlags.contains(.control) {
+                    browser.commitTabSwitch()
+                }
                 // ⌘ let go of ends a ⌘K walk, wherever it stopped.
                 if !event.modifierFlags.contains(.command) { browser.landSummon() }
                 return event
@@ -639,6 +647,41 @@ struct ContentView: View {
     private func take(_ event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+
+        if event.keyCode == 48, flags.contains(.control),
+           !flags.contains(.command), !flags.contains(.option) {
+            guard browser.prefs.mruSwitcher else { return true }
+            guard canSwitchTabs else { return false }
+            if !event.isARepeat, let current = browser.activeID {
+                browser.tabSwitcher.step(
+                    eligible: browser.tabs.filter { !$0.bench }.map(\.id),
+                    current: current,
+                    backwards: flags.contains(.shift)
+                )
+            }
+            return true
+        }
+
+        if browser.tabSwitcher.active, flags.contains(.control),
+           !flags.contains(.command), !flags.contains(.option) {
+            let direction: TabSwitcher.Direction?
+            switch event.keyCode {
+            case 123: direction = .left
+            case 124: direction = .right
+            case 125: direction = .down
+            case 126: direction = .up
+            default: direction = nil
+            }
+            if let direction {
+                browser.tabSwitcher.move(direction)
+                return true
+            }
+        }
+
+        if browser.tabSwitcher.active {
+            browser.tabSwitcher.cancel()
+            if event.keyCode == 53 { return true }
+        }
 
         // Escape puts the page back. On a blank tab there is no page to put
         // back, so it belongs to whatever else wants it.
@@ -692,7 +735,7 @@ struct ContentView: View {
         // Except while an address is being typed. Then the list under the field
         // is what there is to move through, and Return takes whatever the walk
         // landed on.
-        if event.keyCode == 48, !flags.contains(.command), !flags.contains(.option) {
+        if event.keyCode == 48, !flags.contains(.command), !flags.contains(.option), !flags.contains(.control) {
             if browser.editingTab != nil { return true }
             // Filling something in on the page: the key belongs to the field,
             // which may well be offering a completion to take with it.
@@ -798,5 +841,14 @@ struct ContentView: View {
             return false
         }
         return true
+    }
+
+    private var canSwitchTabs: Bool {
+        guard let window, NSApp.keyWindow === window else { return false }
+        return !browser.tuning && !browser.recalling && !browser.hoarding &&
+            !browser.bookmarking && !browser.welcoming && !browser.managing &&
+            !browser.reviewing && !browser.finding && !browser.bookmarksOpen &&
+            !browser.veiling && !browser.summoning && browser.editingTab == nil &&
+            browser.asking == nil && browser.offering == nil && browser.suggesting == nil
     }
 }

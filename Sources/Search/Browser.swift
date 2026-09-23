@@ -8,14 +8,24 @@ import Combine
 
 @MainActor
 final class Browser: NSObject, ObservableObject {
-    @Published private(set) var tabs: [Tab] = []
+    @Published private(set) var tabs: [Tab] = [] {
+        didSet { tabSwitcher.tabsChanged(eligible: tabs.map(\.id)) }
+    }
+    let tabSwitcher = TabSwitcher()
     @Published var activeID: Tab.ID? {
         didSet {
+            guard oldValue != activeID else { return }
+            tabSwitcher.cancel()
             // The tab just left is the tab just looked at. Whether a tab has
             // gone unwatched long enough to sleep is counted from here, not
             // from when it was first picked.
-            guard oldValue != activeID, let old = oldValue else { return }
-            tabs.first { $0.id == old }?.touch()
+            if let old = oldValue, let tab = tabs.first(where: { $0.id == old }) {
+                tab.touch()
+                if prefs.mruSwitcher { tabSwitcher.rememberPreview(of: tab) }
+            }
+            if let activeID, tabs.contains(where: { $0.id == activeID && !$0.bench }) {
+                tabSwitcher.record(activeID)
+            }
         }
     }
 
@@ -782,6 +792,13 @@ final class Browser: NSObject, ObservableObject {
             }
             .store(in: &bag)
 
+        prefs.$mruSwitcher
+            .dropFirst()
+            .sink { [weak self] on in
+                if !on { self?.tabSwitcher.clearPreviews() }
+            }
+            .store(in: &bag)
+
         prefs.$passkeys
             .dropFirst()
             .sink { [weak self] on in
@@ -942,6 +959,7 @@ final class Browser: NSObject, ObservableObject {
         // its place, the page is let go, and you land on whatever you were
         // looking at before. Only Unpin takes it out of the row.
         if tab.pin != nil {
+            tabSwitcher.forgetPreview(of: tab.id)
             tab.rest()
             // Ordinary tabs first. Falling back to the most recent tab of any
             // kind meant closing one pin landed you on another pin, and ⌘W
@@ -1067,6 +1085,12 @@ final class Browser: NSObject, ObservableObject {
     func select(index: Int) {
         guard tabs.indices.contains(index) else { return }
         select(tabs[index])
+    }
+
+    func commitTabSwitch(picking id: Tab.ID? = nil) {
+        guard let target = tabSwitcher.finish(picking: id),
+              let tab = tabs.first(where: { $0.id == target }) else { return }
+        select(tab)
     }
 
     /// A link opened from a page lands next to the page it came from, not at
@@ -1737,6 +1761,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         guard let tab = tab(for: webView) else { return }
+        tabSwitcher.forgetPreview(of: tab.id)
         tab.failure = nil
         tab.typing = false
         // Whatever you last set this site to, before it draws a single frame
@@ -1882,9 +1907,6 @@ extension Browser: WKDownloadDelegate {
         return candidate
     }
 }
-
-
-
 
 
 
