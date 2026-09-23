@@ -274,6 +274,41 @@ enum ExtensionShims {
         try { return chrome.extension && typeof chrome.extension.getBackgroundPage === "function" && chrome.extension.getBackgroundPage() === root; }
         catch (e) { return false; }
       })());
+      // WebKit runs an extension's worker on its process's main thread, and
+      // `new WebSocket()` there waits for the main thread — itself — for
+      // ever: the worker freezes mid-task and WebKit can't start another in
+      // its place. 1Password opens one the moment you sign in. Until sockets
+      // are carried natively, one fails at once the way an unreachable
+      // server does, which extensions already recover from.
+      // ponytail: no live socket in workers; proxy through URLSessionWebSocketTask if one needs it.
+      if (worker && typeof root.WebSocket === "function") {
+        const states = { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 };
+        class WebSocket extends EventTarget {
+          constructor(url) {
+            super();
+            let parsed;
+            try { parsed = new URL(url, location.href); } catch (e) { throw new DOMException("The URL '" + url + "' is invalid.", "SyntaxError"); }
+            if (!/^(wss?|https?):$/.test(parsed.protocol)) throw new DOMException("The URL's scheme must be either 'ws' or 'wss'.", "SyntaxError");
+            Object.assign(this, { url: parsed.href.replace(/^http/, "ws"), readyState: 0, protocol: "", extensions: "", bufferedAmount: 0, binaryType: "blob" });
+            this.onopen = this.onmessage = this.onerror = this.onclose = null;
+            setTimeout(() => {
+              this.readyState = 3;
+              for (const event of [new Event("error"), new CloseEvent("close", { code: 1006, reason: "", wasClean: false })]) {
+                this.dispatchEvent(event);
+                const handler = this["on" + event.type];
+                if (typeof handler === "function") handler.call(this, event);
+              }
+            });
+          }
+          send() { throw new DOMException("Still in CONNECTING state.", "InvalidStateError"); }
+          close() {}
+        }
+        for (const [k, v] of Object.entries(states)) {
+          Object.defineProperty(WebSocket, k, { value: v });
+          Object.defineProperty(WebSocket.prototype, k, { value: v });
+        }
+        root.WebSocket = WebSocket;
+      }
       // A script a worker imports that isn't there: Chrome throws at once.
       // WebKit goes looking for it first, and while it does, runs the
       // promises already waiting — code that notes "still starting" until
