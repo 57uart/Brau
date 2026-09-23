@@ -21,9 +21,9 @@
 #
 # What "ship" needs, once:
 #   - a Developer ID Application certificate in the login keychain
-#     (SEARCH_SIGN_IDENTITY names it; otherwise the first one found is used)
+#     (MNML_SIGN_IDENTITY names it; otherwise the first one found is used)
 #   - a notarytool profile: xcrun notarytool store-credentials "search"
-#     (SEARCH_NOTARY_PROFILE names it; default "search")
+#     (MNML_NOTARY_PROFILE names it; default "mnml")
 #   - MNML_DOWNLOAD_URL, the https folder the three files are served from,
 #     for the appcast. Default https://officecommun.com/search, which is
 #     where Updater.feed in Updater.swift looks.
@@ -129,9 +129,12 @@ PLIST
 # Signing. A Developer ID certificate, when there is one, with the hardened
 # runtime Gatekeeper insists on for anything notarised; otherwise ad-hoc,
 # which is enough for the app to run on the machine that built it — and
-# which the updater refuses to swap anything in under.
-IDENTITY="${SEARCH_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
-  | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)}"
+# which the updater refuses to swap anything in under. Failing a Developer
+# ID, a free Apple Development certificate: it still carries a team ID, which
+# 1Password needs before it will talk to a browser.
+IDENTITY="${MNML_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
+  | grep -o -e '"Developer ID Application: [^"]*"' -e '"Apple Development: [^"]*"' \
+  | sort -r | head -1 | tr -d '"' || true)}"
 # Passkeys need an entitlement Apple grants to browsers on request, and a
 # Developer ID provisioning profile that carries it. With the profile next to
 # this script, both go in; without it, the app is signed as before, because
@@ -225,7 +228,7 @@ echo "wrote: build/appcast.json ($VERSION, build $BUILD)"
 # is fetched by an app that already trusts it, and is left as hashed.
 [ -z "$IDENTITY" ] && { echo "can't ship without a Developer ID certificate" >&2; exit 1; }
 for FILE in "$DMG" "$ZIP"; do
-  xcrun notarytool submit "$FILE" --keychain-profile "${SEARCH_NOTARY_PROFILE:-search}" --wait
+  xcrun notarytool submit "$FILE" --keychain-profile "${MNML_NOTARY_PROFILE:-mnml}" --wait
 done
 xcrun stapler staple "$DMG"
 echo "shipped: $DMG, $ZIP and build/appcast.json — ./publish.sh <folder> puts them on the site"
