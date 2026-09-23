@@ -62,7 +62,7 @@ final class Tab: ObservableObject, Identifiable {
     /// The web view if there is one yet, for the callers that must not be
     /// the reason there is.
     private(set) var built: PageView?
-    private let configuration: WKWebViewConfiguration
+    private var configuration: WKWebViewConfiguration
     /// Whoever handles navigation and windows for this page; applied when
     /// the page is built, whenever that is.
     weak var delegate: (WKNavigationDelegate & WKUIDelegate)? {
@@ -533,6 +533,23 @@ final class Tab: ObservableObject, Identifiable {
     }
 
     func go(to url: URL) {
+        // A website and an extension's page can't share a view: an
+        // extension's pages load only into a view built from its own
+        // configuration, and websites don't load into that one. Crossing
+        // over, the tab keeps its identity — extensions know it by its id —
+        // and gets a view built for where it is going, the way a sleeping
+        // tab gets one on waking.
+        let from = built?.url ?? address
+        let fromExtension = ["chrome-extension", "webkit-extension"].contains(from?.scheme ?? "")
+        if let wanted = Browser.extensionConfiguration(for: url) {
+            if !fromExtension || from?.host != Browser.page(url).host {
+                discard()
+                configuration = wanted
+            }
+        } else if fromExtension {
+            discard()
+            configuration = Web.configuration(shy: shy)
+        }
         // Set straight away rather than waiting for the observer: the tab has to
         // stop being blank in the same frame the field disappears, or the empty
         // state flashes back for an instant on its way out.

@@ -1607,6 +1607,19 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             return
         }
 
+        // An extension's page sending its own tab to a website — 1Password's
+        // Sign in does exactly that. WebKit won't load a website into a view
+        // built from the extension's configuration, so the tab goes there
+        // through go(to:), which builds it one that will.
+        if ["http", "https"].contains(scheme),
+           action.targetFrame?.isMainFrame ?? true,
+           webView.url?.scheme == "chrome-extension" || webView.url?.scheme == "webkit-extension",
+           let tab = tab(for: webView) {
+            tab.go(to: url)
+            decisionHandler(.cancel)
+            return
+        }
+
         // ⌘-click opens beside this tab and leaves you where you are; ⌘⇧-click
         // takes you with it. Middle-click does what ⌘-click does, for hands
         // that learned it that way.
