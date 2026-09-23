@@ -9,11 +9,15 @@ enum Session {
         var url: String
         var title: String
         var pin: String?
+        /// Its tab group, if any. Absent in sessions from before groups.
+        var group: UUID?
     }
 
     struct Shape: Codable {
         var tabs: [Entry]
         var active: Int
+        /// The tab groups, in order. Absent in sessions from before groups.
+        var groups: [TabGroup]?
     }
 
     /// The first space's is the session there always was; each other space

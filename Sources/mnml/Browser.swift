@@ -9,7 +9,40 @@ import Combine
 @MainActor
 final class Browser: NSObject, ObservableObject {
     @Published private(set) var tabs: [Tab] = [] {
-        didSet { tabSwitcher.tabsChanged(eligible: tabs.map(\.id)) }
+        didSet {
+            tabSwitcher.tabsChanged(eligible: tabs.map(\.id))
+            settleGroups()
+        }
+    }
+    /// Tab groups (Groups.swift), in the order they appear in the row.
+    @Published var groups: [TabGroup] = [] {
+        didSet { settleGroups() }
+    }
+    /// Tabs picked with ⌘- and ⇧-click in the column, for its menu to act
+    /// on together.
+    @Published var chosen: Set<Tab.ID> = []
+    /// The group whose name is being typed.
+    @Published var renamingGroup: TabGroup.ID?
+    private var settling = false
+
+    /// The row put back in its blocks after any change to it or to the
+    /// groups (see GroupOrder.settle).
+    func settleGroups() {
+        guard !settling else { return }
+        settling = true
+        defer { settling = false }
+        let items = tabs.map { GroupOrder.Item(id: $0.id, pinned: $0.pin != nil, group: $0.group) }
+        let (ordered, settled) = GroupOrder.settle(items, groups)
+        let byID = Dictionary(uniqueKeysWithValues: tabs.map { ($0.id, $0) })
+        for item in ordered where byID[item.id]?.group != item.group { byID[item.id]?.group = item.group }
+        if ordered.map(\.id) != tabs.map(\.id) { tabs = ordered.compactMap { byID[$0.id] } }
+        if settled != groups { groups = settled }
+    }
+
+    /// The row in a new order, for the group actions; settled on the way in.
+    func arrange(_ row: [Tab]) {
+        tabs = row
+        rememberSession()
     }
     let tabSwitcher = TabSwitcher()
     @Published var activeID: Tab.ID? {
@@ -25,6 +58,13 @@ final class Browser: NSObject, ObservableObject {
             }
             if let activeID, tabs.contains(where: { $0.id == activeID && !$0.bench }) {
                 tabSwitcher.record(activeID)
+            }
+            // A tab reached inside a folded group — ⌘1, ⌃Tab, ⌘K — shows
+            // under the group's name, so the tab you are on is always there.
+            if let tab = active, let group = tab.group,
+               let index = groups.firstIndex(where: { $0.id == group }),
+               !groups[index].open, groups[index].peek != tab.id {
+                groups[index].peek = tab.id
             }
         }
     }
@@ -546,6 +586,8 @@ final class Browser: NSObject, ObservableObject {
                 }
             }
         }
+        // A pinned square belongs to no group.
+        settleGroups()
         // No dialog and no waiting cursor: the letter is taken from the
         // address and applied. Changing it is a separate act, for the day it
         // matters — which is why it is not folded into this one.
@@ -789,14 +831,20 @@ final class Browser: NSObject, ObservableObject {
             }
             return
         }
+        // See showRow: the tabs and their groups settle once, together.
+        settling = true
+        groups = saved.groups ?? []
         for entry in saved.tabs {
             guard let url = URL(string: entry.url) else { continue }
             let tab = Tab()
             prepare(tab)
             tab.restore(url: url, title: entry.title)
             tab.pin = entry.pin
+            tab.group = entry.group
             tabs.append(tab)
         }
+        settling = false
+        settleGroups()
         guard !tabs.isEmpty else {
             adopt(Tab())
             return
@@ -921,14 +969,17 @@ final class Browser: NSObject, ObservableObject {
                     guard let url = tab.pending ?? tab.address,
                           url.scheme?.hasPrefix("http") == true
                     else { return nil }
-                    return Session.Entry(url: url.absoluteString, title: tab.title, pin: tab.pin)
+                    return Session.Entry(url: url.absoluteString, title: tab.title, pin: tab.pin, group: tab.group)
                 },
-                active: tabs.firstIndex { $0.id == activeID } ?? 0
+                active: tabs.firstIndex { $0.id == activeID } ?? 0,
+                // A group whose tabs weren't written — private ones — goes
+                // with them; the next launch settles that away.
+                groups: groups.isEmpty ? nil : groups
             )
         )
     }
 
-    private func rememberSession() {
+    func rememberSession() {
         guard !remembering else { return }
         remembering = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
@@ -1169,6 +1220,8 @@ final class Browser: NSObject, ObservableObject {
         let tab = Tab(configuration: Browser.extensionConfiguration(for: url))
         prepare(tab)
         let here = atEnd ? nil : tabs.firstIndex { $0.id == activeID }
+        // Opened beside a tab in a group, it is one of the group's too.
+        if let here, tabs[here].pin == nil { tab.group = tabs[here].group }
         tabs.insert(tab, at: here.map { $0 + 1 } ?? tabs.count)
         tab.go(to: url)
         if foreground {
@@ -1297,8 +1350,14 @@ final class Browser: NSObject, ObservableObject {
 
     /// Another space's row put on screen in place of this one (see
     /// Spaces.swift) — empty, for one that restores its own.
-    func showRow(_ row: [Tab], active: Tab.ID?) {
+    func showRow(_ row: [Tab], active: Tab.ID?, groups: [TabGroup] = []) {
+        // The row and its groups arrive together: settled one without the
+        // other, every group would look empty and go.
+        settling = true
+        self.groups = groups
         tabs = row
+        settling = false
+        settleGroups()
         activeID = active ?? row.first?.id
     }
 
