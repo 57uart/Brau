@@ -619,6 +619,25 @@ struct TabMenu: View {
             Button("Change Letter") { browser.editLetter(tab) }
             Button("Unpin") { browser.unpin(tab) }
         }
+        // Tab groups live in the column (Groups.swift).
+        if browser.prefs.sidebar, tab.pin == nil {
+            let targets = browser.menuTargets(for: tab)
+            Divider()
+            Button(targets.count > 1 ? "New Group from \(targets.count) Tabs" : "New Group with Tab") {
+                withAnimation(Motion.settle) { _ = browser.makeGroup(of: targets) }
+            }
+            if !browser.groups.isEmpty {
+                Menu("Add to Group") {
+                    ForEach(browser.groups) { group in
+                        Button(group.name) { withAnimation(Motion.settle) { browser.add(targets, to: group.id) } }
+                            .disabled(targets.allSatisfy { $0.group == group.id })
+                    }
+                }
+            }
+            if targets.contains(where: { $0.group != nil }) {
+                Button("Remove from Group") { withAnimation(Motion.settle) { browser.ungroup(targets) } }
+            }
+        }
         Divider()
         Button("Duplicate") {
             browser.select(tab)

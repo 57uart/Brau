@@ -12,9 +12,23 @@ struct SideBar: View {
 
     @Namespace private var pill
 
-    @State private var dragging: Tab.ID?
-    @State private var from = 0
-    @State private var travel: CGFloat = 0
+    /// What is being dragged in the list — tabs, or a whole group — how
+    /// far, and where it would land (see GroupDrop).
+    @State private var held: Held?
+    @State private var heldY: CGFloat = 0
+    @State private var gap: Int?
+    /// A tab held over the middle of another long enough to make a group of the two.
+    @State private var merging: Tab.ID?
+    @State private var mergeCandidate: Tab.ID?
+    /// Where each row is, in the list's own space.
+    @State private var frames: [RowKey: CGRect] = [:]
+    /// How tall the list is, for the empty column below it to drag the window.
+    @State private var listHeight: CGFloat = 0
+
+    enum Held: Equatable {
+        case tabs([Tab.ID], lead: Tab.ID)
+        case group(TabGroup.ID)
+    }
     @State private var landing = false
     /// The width the column had when the edge was picked up.
     @State private var grabbed: CGFloat?
@@ -84,8 +98,14 @@ struct SideBar: View {
                                     .padding(.bottom, 10)
                             }
 
-                            loose
-                            newTab
+                            list
+                        }
+                        .background {
+                            GeometryReader { box in
+                                Color.clear
+                                    .onAppear { listHeight = box.size.height }
+                                    .onChange(of: box.size.height) { _, height in listHeight = height }
+                            }
                         }
                     }
                 }
@@ -152,20 +172,15 @@ struct SideBar: View {
     /// Where the rows stop and the window's own drag area starts. Added up
     /// from what was drawn rather than measured: a measurement would arrive a
     /// frame late, and for one frame the whole column would drag the window.
+    /// Where the list ends — measured, since groups fold and a line comes
+    /// and goes — and the empty column below it starts.
     private var rowsEnd: CGFloat {
-        let pins = browser.pinnedCount
-        let cols = SideBar.pinColumns(pins)
-        let pinRows = pins == 0 ? 0 : (pins + cols - 1) / cols
-        let pinBlock = pinRows == 0 ? 0
-            : CGFloat(pinRows) * pinHeight + CGFloat(pinRows - 1) * SideBar.pinGap + 10
-        let loose = CGFloat(browser.tabs.count - pins) * (SideBar.row + SideBar.gap)
-        return Metrics.strip + pinBlock + loose + SideBar.row + 8
+        Metrics.strip + listHeight + 8
     }
 
     // MARK: - the pinned squares
 
     private var pinnedTabs: [Tab] { browser.tabs.filter { $0.pin != nil } }
-    private var looseTabs: [Tab] { browser.tabs.filter { $0.pin == nil } }
 
     /// Three columns is the block's own shape — up to six pins, that's two
     /// full rows, and one or two is just those same three places with a
@@ -291,66 +306,215 @@ struct SideBar: View {
 
     // MARK: - the rows
 
-    private var loose: some View {
-        VStack(spacing: SideBar.gap) {
-            // See the grid: the drag is measured in the column's space, not
-            // the row's, so a row that has just moved keeps its bearings.
-            ForEach(Array(looseTabs.enumerated()), id: \.element.id) { index, tab in
-                let step = SideBar.row + SideBar.gap
-                let held = dragging == tab.id
-                SideRow(
-                    browser: browser,
-                    prefs: prefs,
-                    tab: tab,
-                    live: tab.id == browser.activeID,
-                    pill: pill,
-                    close: { browser.close(tab) }
-                )
-                .offset(y: held ? travel - CGFloat(index - from) * step : 0)
-                // Under the hand exactly. Its place in the row springs when it
-                // passes another tab, and the offset springs back the same way —
-                // until the next move of the hand cuts the offset's spring short
-                // and leaves the place's running: the tab jumped a whole slot and
-                // drifted back each time it passed one. Only the others glide.
-                .transaction { if held { $0.animation = nil } }
-                .zIndex(held ? 1 : 0)
-                .shadow(color: .black.opacity(held ? 0.14 : 0), radius: 12, y: 4)
-                .gesture(reorder(tab: tab, index: index, step: step))
+    /// A tab by itself, or a group with its tabs, in the order of the row.
+    private enum Entry: Identifiable {
+        case tab(Tab)
+        case group(TabGroup, [Tab])
+        var id: String {
+            switch self {
+            case .tab(let tab): return "t" + tab.id.uuidString
+            case .group(let group, _): return "g" + group.id.uuidString
             }
         }
-        .coordinateSpace(name: "rows")
     }
 
-    /// Pick a row up and the others make way as it passes them.
-    private func reorder(tab: Tab, index: Int, step: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 5, coordinateSpace: .named("rows"))
-            .onChanged { value in
-                if dragging != tab.id {
-                    dragging = tab.id
-                    from = index
+    /// Above the line (pinned groups) or below it (everything else).
+    private func entries(pinned: Bool) -> [Entry] {
+        var out: [Entry] = []
+        var seen = Set<TabGroup.ID>()
+        for tab in browser.tabs where tab.pin == nil {
+            if let id = tab.group, let group = browser.group(id) {
+                guard group.pinned == pinned, !seen.contains(id) else { continue }
+                seen.insert(id)
+                out.append(.group(group, browser.members(of: id)))
+            } else if !pinned {
+                out.append(.tab(tab))
+            }
+        }
+        return out
+    }
+
+    /// A line under the pinned squares and pinned groups, when there are any.
+    private var hasLine: Bool { browser.pinnedCount > 0 || browser.groups.contains(where: \.pinned) }
+
+    private var list: some View {
+        let pinnedGroups = entries(pinned: true)
+        return VStack(alignment: .leading, spacing: 0) {
+            if !pinnedGroups.isEmpty {
+                VStack(spacing: SideBar.gap) {
+                    ForEach(pinnedGroups) { entry in entryView(entry) }
                 }
-                travel = value.translation.height
-                let moved = Int((travel / step).rounded())
-                let target = min(max(0, from + moved), looseTabs.count - 1)
-                if target != index {
-                    // Positions here are among the loose rows; the pinned
-                    // block sits in front of them in the real list.
-                    withAnimation(Motion.settle) {
-                        browser.move(tab, to: target + browser.pinnedCount)
-                    }
+                .padding(.bottom, 8)
+            }
+            if hasLine {
+                Rectangle()
+                    .fill(Palette.hairline)
+                    .frame(height: 1)
+                    .padding(.horizontal, 6)
+                    .report(.line)
+                    .padding(.bottom, 8)
+            }
+            newTab
+            VStack(spacing: SideBar.gap) {
+                ForEach(entries(pinned: false)) { entry in entryView(entry) }
+            }
+            .padding(.top, SideBar.gap)
+        }
+        .coordinateSpace(name: "column")
+        .onPreferenceChange(RowFrames.self) { frames = $0 }
+        .overlay(alignment: .topLeading) { insertion }
+        .animation(Motion.settle, value: browser.groups)
+    }
+
+    @ViewBuilder
+    private func entryView(_ entry: Entry) -> some View {
+        switch entry {
+        case .tab(let tab):
+            tabRow(tab)
+        case .group(let group, let members):
+            GroupBlock(browser: browser, group: group, members: members, row: { tabRow($0) },
+                       drag: { value in drag(.group(group.id), value) }, drop: finishDrag)
+                .offset(y: held == .group(group.id) ? heldY : 0)
+                .zIndex(held == .group(group.id) ? 1 : 0)
+                .shadow(color: .black.opacity(held == .group(group.id) ? 0.14 : 0), radius: 12, y: 4)
+        }
+    }
+
+    private func isHeld(_ tab: Tab) -> Bool {
+        if case .tabs(let ids, _)? = held { return ids.contains(tab.id) }
+        return false
+    }
+
+    private func tabRow(_ tab: Tab) -> some View {
+        let lifted = isHeld(tab)
+        return SideRow(
+            browser: browser,
+            prefs: prefs,
+            tab: tab,
+            live: tab.id == browser.activeID,
+            pill: pill,
+            close: { browser.close(tab) }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(Palette.ink.opacity(merging == tab.id ? 0.45 : 0), lineWidth: 1.5)
+        )
+        .report(.tab(tab.id))
+        .offset(y: lifted ? heldY : 0)
+        // Under the hand exactly; only the others glide.
+        .transaction { if lifted { $0.animation = nil } }
+        .zIndex(lifted ? 1 : 0)
+        .shadow(color: .black.opacity(lifted ? 0.14 : 0), radius: 12, y: 4)
+        .gesture(
+            DragGesture(minimumDistance: 5, coordinateSpace: .named("column"))
+                .onChanged { value in
+                    let ids = browser.chosen.contains(tab.id) ? browser.chosenTabs.map(\.id) : [tab.id]
+                    drag(.tabs(ids, lead: tab.id), value)
+                }
+                .onEnded { _ in finishDrag() }
+        )
+    }
+
+    // MARK: - dragging in the list
+
+    /// The rows on screen, top to bottom, less whatever is being dragged.
+    private func dropRows(without held: Held) -> [(row: GroupDrop.Row, key: RowKey)] {
+        var out: [(GroupDrop.Row, RowKey)] = []
+        func add(_ entry: Entry) {
+            switch entry {
+            case .tab(let tab):
+                if case .tabs(let ids, _) = held, ids.contains(tab.id) { return }
+                out.append((.tab(tab.id, group: nil), .tab(tab.id)))
+            case .group(let group, let members):
+                if held == .group(group.id) { return }
+                out.append((.header(group.id, open: group.open), .header(group.id)))
+                for tab in members where group.open || tab.id == group.peek {
+                    if case .tabs(let ids, _) = held, ids.contains(tab.id) { continue }
+                    out.append((.tab(tab.id, group: group.id), .tab(tab.id)))
                 }
             }
-            .onEnded { _ in
-                withAnimation(Motion.settle) {
-                    dragging = nil
-                    travel = 0
-                }
+        }
+        entries(pinned: true).forEach(add)
+        if hasLine { out.append((.line, .line)) }
+        entries(pinned: false).forEach(add)
+        return out
+    }
+
+    private func drag(_ what: Held, _ value: DragGesture.Value) {
+        if held == nil { held = what }
+        guard let held else { return }
+        heldY = value.translation.height
+        let y = value.location.y
+        let rows = dropRows(without: held)
+        gap = rows.filter { (frames[$0.key]?.midY ?? .infinity) < y }.count
+
+        // Held over the middle of a tab on its own, a moment: a group of the two.
+        var over: Tab.ID?
+        if case .tabs = held {
+            for (row, key) in rows {
+                guard case .tab(let id, nil) = row, let frame = frames[key] else { continue }
+                if y > frame.minY + frame.height * 0.28, y < frame.maxY - frame.height * 0.28 { over = id }
             }
+        }
+        guard over != mergeCandidate else { return }
+        mergeCandidate = over
+        merging = nil
+        if let over {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if mergeCandidate == over, self.held != nil { withAnimation(Motion.quick) { merging = over } }
+            }
+        }
+    }
+
+    private func finishDrag() {
+        defer {
+            withAnimation(Motion.settle) {
+                held = nil
+                heldY = 0
+                gap = nil
+                merging = nil
+                mergeCandidate = nil
+            }
+        }
+        guard let held, let gap else { return }
+        let rows = dropRows(without: held).map(\.row)
+        withAnimation(Motion.settle) {
+            switch held {
+            case .tabs(let ids, _):
+                let moving = browser.tabs.filter { ids.contains($0.id) }
+                if let merging, let target = browser.tabs.first(where: { $0.id == merging }) {
+                    browser.makeGroup(of: [target] + moving)
+                } else {
+                    browser.place(moving, GroupDrop.tab(at: gap, in: rows))
+                }
+            case .group(let id):
+                let landing = GroupDrop.group(at: gap, in: rows)
+                browser.placeGroup(id, pinned: landing.pinned, before: landing.before)
+            }
+        }
+    }
+
+    /// A line where the held row would land, unless it is about to make a group.
+    @ViewBuilder
+    private var insertion: some View {
+        if let held, let gap, merging == nil {
+            let rows = dropRows(without: held)
+            let y: CGFloat? = gap < rows.count
+                ? frames[rows[gap].key].map { $0.minY - 1 }
+                : rows.last.flatMap { frames[$0.key] }.map { $0.maxY + 1 }
+            if let y {
+                Capsule()
+                    .fill(Palette.ink.opacity(0.45))
+                    .frame(height: 2)
+                    .padding(.horizontal, 4)
+                    .offset(y: y - 1)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 
     private var newTab: some View {
         Quiet(icon: "plus", title: "New tab", height: SideBar.row) { browser.newTab() }
-            .padding(.top, SideBar.gap)
     }
 
     /// One small door at the bottom: the settings.
@@ -458,7 +622,7 @@ private struct PinSquare: View {
 }
 
 /// One tab, as a line in the column.
-private struct SideRow: View {
+struct SideRow: View {
     @ObservedObject var browser: Browser
     @ObservedObject var prefs: Preferences
     @ObservedObject var tab: Tab
@@ -539,6 +703,12 @@ private struct SideRow: View {
         .modifier(Shake(travel: shake))
         .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .modifier(OneClick(double: false) {
+            // ⌘-click picks tabs, ⇧-click a run of them, for the menu to act
+            // on together; a plain click is the tab, and lets the pick go.
+            let flags = NSEvent.modifierFlags
+            if flags.contains(.command) { browser.toggleChosen(tab); return }
+            if flags.contains(.shift) { browser.chooseRange(to: tab); return }
+            browser.chosen = []
             if live { browser.beginTabEdit(tab) } else { browser.select(tab) }
         })
         .onHover { hovering = $0 }
@@ -567,6 +737,13 @@ private struct SideRow: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             .matchedGeometryEffect(id: "live", in: pill)
+        } else if browser.chosen.contains(tab.id) {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Palette.wash)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(Palette.ink.opacity(0.18), lineWidth: 1)
+                )
         } else if hovering {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Palette.hover)
@@ -640,5 +817,28 @@ struct Door: View {
         .help(help)
         .animation(Motion.quick, value: hovering)
         .animation(Motion.quick, value: on)
+    }
+}
+
+/// A row's place in the column's list, reported for dragging (see SideBar).
+enum RowKey: Hashable {
+    case tab(UUID)
+    case header(UUID)
+    case line
+}
+
+struct RowFrames: PreferenceKey {
+    static var defaultValue: [RowKey: CGRect] = [:]
+    static func reduce(value: inout [RowKey: CGRect], nextValue: () -> [RowKey: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+extension View {
+    /// Where this row is, in the list's space.
+    func report(_ key: RowKey) -> some View {
+        background(GeometryReader { box in
+            Color.clear.preference(key: RowFrames.self, value: [key: box.frame(in: .named("column"))])
+        })
     }
 }

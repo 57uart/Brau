@@ -74,6 +74,10 @@ final class GroupsTests: XCTestCase {
         XCTAssertEqual(GroupDrop.group(at: 3, in: without).pinned, false)
         XCTAssertEqual(GroupDrop.group(at: 4, in: without).before, .tab(ids[4]))
         XCTAssertNil(GroupDrop.group(at: 5, in: without).before)
+        // Nothing pinned, no line: the top is just the top.
+        let flat: [GroupDrop.Row] = [.tab(ids[1], group: nil), .tab(ids[4], group: nil)]
+        XCTAssertEqual(GroupDrop.group(at: 0, in: flat).pinned, false)
+        XCTAssertEqual(GroupDrop.group(at: 0, in: flat).before, .tab(ids[1]))
         // Let go inside another group: before that group.
         XCTAssertEqual(GroupDrop.group(at: 1, in: without).before, .group(p))
     }

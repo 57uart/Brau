@@ -221,6 +221,20 @@ struct Command: Identifiable {
                 browser.editLetter(tab)
                 return true
             },
+            .when("tabs.newInGroup", "New Tab in Group", .tabs, KeyCombo("t", option: true), "A blank tab at the end of the group the tab you're on is in.") { browser in
+                guard let group = browser.active?.group else { return false }
+                browser.newTab(in: group)
+                return true
+            },
+            .when("tabs.groupSelected", "New Group from Tabs", .tabs, nil, "A group of the tabs picked with ⌘-click, or of the tab you're on.") { browser in
+                let tabs = browser.chosen.isEmpty ? browser.active.map { [$0] } ?? [] : browser.chosenTabs
+                return browser.makeGroup(of: tabs) != nil
+            },
+            .when("tabs.toggleGroup", "Collapse or Expand Group", .tabs, nil, "Folds the group the tab you're on is in, keeping that tab showing, or opens it.") { browser in
+                guard let group = browser.active?.group else { return false }
+                browser.toggleOpen(group)
+                return true
+            },
             Command("tabs.duplicate", "Duplicate Tab", .tabs, KeyCombo("d"), "The same page again, in a tab beside this one.") { $0.duplicate() },
             Command("tabs.copyAddress", "Copy Address", .tabs, KeyCombo("c", shift: true), "The page's address, on the clipboard.") { $0.copyAddress() },
             Command("tabs.pasteAndGo", "Paste and Go", .tabs, KeyCombo("v", shift: true), "Goes to the address, or searches for the words, on the clipboard.") { $0.pasteAndGo() },

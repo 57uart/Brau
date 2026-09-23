@@ -647,6 +647,50 @@ final class Bench {
                 window.contentView = nil
             }
 
+        case "group":
+            // Tab groups (Groups.swift), for a script: make one of some tabs,
+            // fold, open, pin, unpin, separate or close one, add tabs to one,
+            // or list them. Test runs only — it rearranges your tabs.
+            guard Store.testing else { answer(["error": "group only works on a --test run"]); return }
+            let words = request["args"] as? [String] ?? []
+            let tab = { (short: String) in browser.tabs.first { $0.id.uuidString.lowercased().hasPrefix(short.lowercased()) } }
+            let group = { (short: String) in browser.groups.first { $0.id.uuidString.lowercased().hasPrefix(short.lowercased()) } }
+            switch words.first {
+            case "make":
+                let id = browser.makeGroup(of: words.dropFirst().compactMap(tab))
+                browser.renamingGroup = nil
+                answer(["group": id.map { String($0.uuidString.prefix(8)).lowercased() } ?? ""])
+                return
+            case "add":
+                guard words.count > 2, let g = group(words[1]) else { answer(["error": "group add GROUP TAB…"]); return }
+                browser.add(words.dropFirst(2).compactMap(tab), to: g.id)
+            case "fold", "open":
+                guard words.count > 1, let g = group(words[1]) else { answer(["error": "group fold|open GROUP"]); return }
+                if g.open == (words[0] == "fold") { browser.toggleOpen(g.id) }
+            case "pin", "unpin":
+                guard words.count > 1, let g = group(words[1]) else { answer(["error": "group pin|unpin GROUP"]); return }
+                browser.setPinned(g.id, words[0] == "pin")
+            case "separate", "close":
+                guard words.count > 1, let g = group(words[1]) else { answer(["error": "group separate|close GROUP"]); return }
+                words[0] == "close" ? browser.closeGroup(g.id) : browser.separate(g.id)
+            case "name":
+                guard words.count > 2, let g = group(words[1]) else { answer(["error": "group name GROUP NAME"]); return }
+                browser.rename(g.id, to: words.dropFirst(2).joined(separator: " "))
+            case "colour":
+                guard words.count > 2, let g = group(words[1]), let c = Int(words[2]) else { answer(["error": "group colour GROUP 0-7"]); return }
+                browser.setColour(g.id, c)
+            default:
+                break
+            }
+            answer(["groups": browser.groups.map { g in
+                [
+                    "id": String(g.id.uuidString.prefix(8)).lowercased(), "name": g.name, "colour": g.colour,
+                    "pinned": g.pinned, "open": g.open,
+                    "peek": g.peek.map { String($0.uuidString.prefix(8)).lowercased() } ?? "",
+                    "tabs": browser.members(of: g.id).map { String($0.id.uuidString.prefix(8)).lowercased() },
+                ] as [String: Any]
+            }, "row": browser.tabs.map { String($0.id.uuidString.prefix(8)).lowercased() }])
+
         case "column":
             // The column of tabs, drawn off screen at its width, with what the
             // browser has now — the rows, the card for a new space, the dots.

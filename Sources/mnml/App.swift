@@ -91,6 +91,15 @@ struct MnmlApp: App {
                         item("tabs.unpin")
                     }
                 }
+                if browser.prefs.sidebar {
+                    item("tabs.newInGroup")
+                        .disabled(browser.active?.group == nil)
+                    item("tabs.groupSelected")
+                        .disabled(browser.active?.pin != nil && browser.chosen.isEmpty)
+                    item("tabs.toggleGroup")
+                        .disabled(browser.active?.group == nil)
+                    Divider()
+                }
                 item("tabs.duplicate")
                     .disabled(browser.active?.isBlank ?? true)
                 item("tabs.copyAddress")
@@ -738,6 +747,10 @@ struct ContentView: View {
         if event.keyCode == 53 {
             if browser.editingTab != nil {
                 browser.cancelTabEdit()
+                return true
+            }
+            if !browser.chosen.isEmpty {
+                browser.chosen = []
                 return true
             }
             if browser.makingSpace {

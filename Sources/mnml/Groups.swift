@@ -147,7 +147,8 @@ enum GroupDrop {
     /// its own name and tabs already out of `rows`.
     static func group(at: Int, in rows: [Row]) -> (pinned: Bool, before: Anchor?) {
         let at = min(max(0, at), rows.count)
-        let line = rows.firstIndex(of: .line) ?? 0
+        // No line on screen — nothing pinned — is no place to pin to.
+        let line = rows.firstIndex(of: .line) ?? -1
         let pinned = at <= line
         // Inside another group is not a place for a group: before that group.
         var gap = at
@@ -347,5 +348,33 @@ extension Browser {
         guard !pages.isEmpty else { return }
         bookmarks.insert(.folder(group.name, pages), into: nil)
         announce("Saved to Bookmarks as “\(group.name)”")
+    }
+}
+
+// MARK: - several tabs at once
+
+extension Browser {
+    /// The tabs picked with ⌘- and ⇧-click, in row order.
+    var chosenTabs: [Tab] { tabs.filter { chosen.contains($0.id) } }
+
+    /// What a tab's menu acts on: every picked tab if it is one of them,
+    /// otherwise just it.
+    func menuTargets(for tab: Tab) -> [Tab] {
+        chosen.contains(tab.id) && chosen.count > 1 ? chosenTabs : [tab]
+    }
+
+    /// ⌘-click: in or out of the picked set, which starts with the tab
+    /// you are on.
+    func toggleChosen(_ tab: Tab) {
+        guard tab.pin == nil else { return }
+        if chosen.isEmpty, let active, active.pin == nil { chosen.insert(active.id) }
+        if chosen.contains(tab.id) { chosen.remove(tab.id) } else { chosen.insert(tab.id) }
+    }
+
+    /// ⇧-click: every tab from the one you are on to this one.
+    func chooseRange(to tab: Tab) {
+        guard tab.pin == nil, let end = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+        let start = tabs.firstIndex { $0.id == activeID && $0.pin == nil } ?? end
+        chosen = Set(tabs[min(start, end)...max(start, end)].filter { $0.pin == nil }.map(\.id))
     }
 }
