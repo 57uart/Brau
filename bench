@@ -9,6 +9,8 @@
     ./bench select ID                  bring a tab to the front — --test runs only
     ./bench resize W H [STEPS]         take the window to W×H in steps, like a drag — --test runs only
     ./bench key ID TEXT                press keys on a tab as real key events — --test runs only
+    ./bench press ID COMBO             one key press, cmd+shift+t, through the whole app — --test runs only
+    ./bench window PATH                the whole window as drawn now, to a PNG — --test runs only
     ./bench text ID                    the page's text
     ./bench eval ID JS                 run JavaScript, print what it returns
     ./bench click ID SELECTOR
@@ -147,6 +149,12 @@ def main(argv):
     elif verb == "key":
         if len(args) != 2: sys.exit("usage: bench key ID TEXT")
         request["id"], request["text"] = args
+    elif verb == "window":
+        if len(args) != 1: sys.exit("usage: bench window PATH")
+        request["path"] = os.path.abspath(args[0])
+    elif verb == "press":
+        if len(args) != 2: sys.exit("usage: bench press ID COMBO   (e.g. cmd+shift+t)")
+        request["id"], request["combo"] = args
     elif verb == "resize":
         if len(args) not in (2, 3): sys.exit("usage: bench resize WIDTH HEIGHT [STEPS]")
         request["width"], request["height"] = float(args[0]), float(args[1])

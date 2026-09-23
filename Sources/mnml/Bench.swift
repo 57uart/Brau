@@ -35,13 +35,17 @@ final class Bench {
     /// True while something is listening.
     private(set) var running = false
 
-    /// The key code of a letter on a US keyboard, which is what WebKit reads
-    /// alongside the characters; anything else goes as the space bar's.
+    /// The key code of a letter, digit or mark on a US keyboard, which is what
+    /// WebKit and the shortcuts read alongside the characters; anything else
+    /// goes as the space bar's.
     static func keyCode(for character: Character) -> UInt16 {
         let codes: [Character: UInt16] = [
             "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9,
             "b": 11, "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "o": 31, "u": 32,
             "i": 34, "p": 35, "l": 37, "j": 38, "k": 40, "n": 45, "m": 46,
+            "1": 18, "2": 19, "3": 20, "4": 21, "5": 23, "6": 22, "7": 26, "8": 28, "9": 25, "0": 29,
+            "-": 27, "=": 24, "+": 24, "[": 33, "]": 30, ",": 43, ".": 47, "/": 44, ";": 41, "'": 39,
+            "`": 50, "\\": 42,
         ]
         return codes[Character(character.lowercased())] ?? 49
     }
@@ -367,6 +371,7 @@ final class Bench {
             }
             if let window = Links.window { out["lights"] = Bench.lights(of: window) }
             out["keysQuieted"] = PageView.quieted
+            out["shortcutAsk"] = browser.shortcutAsk.map { $0.id } ?? ""
             answer(out)
 
         case "key":
@@ -404,6 +409,61 @@ final class Bench {
                 if let watch { NSEvent.removeMonitor(watch) }
                 answer(["typed": text, "sentBackUnused": resent, "quieted": PageView.quieted - before])
             }
+
+        case "window":
+            // The window as drawn right now, to a PNG — for checking a panel
+            // without a screen recording permission. Test runs only.
+            guard Store.testing else { answer(["error": "window only works on a --test run"]); return }
+            guard let window = Links.window, let view = window.contentView?.superview ?? window.contentView,
+                  let path = request["path"] as? String,
+                  let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+            else { answer(missing(request)); return }
+            view.cacheDisplay(in: view.bounds, to: rep)
+            guard let png = rep.representation(using: .png, properties: [:]),
+                  (try? png.write(to: URL(fileURLWithPath: path))) != nil
+            else { answer(["error": "couldn't write \(path)"]); return }
+            answer(["path": path])
+
+        case "press":
+            // One key press — "cmd+shift+t" — put in the app's event queue,
+            // so it travels the way a real one does: the key monitor, the
+            // page, the menus. Only on a MNML_PROBE run: it acts on a page.
+            guard Store.testing else { answer(["error": "press only works on a --test run — it would act on your page"]); return }
+            guard let tab = find(request, in: browser), let combo = request["combo"] as? String else { answer(missing(request)); return }
+            house(tab)
+            browser.select(tab)
+            let view = tab.web
+            view.window?.makeKeyAndOrderFront(nil)
+            view.window?.makeFirstResponder(view)
+            var parts = combo.lowercased().split(separator: "+").map(String.init)
+            let key = parts.popLast() ?? ""
+            var flags: NSEvent.ModifierFlags = []
+            for part in parts {
+                switch part {
+                case "cmd", "command": flags.insert(.command)
+                case "shift": flags.insert(.shift)
+                case "opt", "option", "alt": flags.insert(.option)
+                case "ctrl", "control": flags.insert(.control)
+                default: break
+                }
+            }
+            let special: [String: (String, UInt16)] = [
+                "left": ("\u{F702}", 123), "right": ("\u{F703}", 124), "down": ("\u{F701}", 125), "up": ("\u{F700}", 126),
+                "tab": ("\t", 48), "esc": ("\u{1B}", 53), "return": ("\r", 36), "delete": ("\u{7F}", 51),
+            ]
+            let (chars, code) = special[key] ?? (key, key.count == 1 ? Bench.keyCode(for: Character(key)) : 49)
+            let shown = flags.contains(.shift) && chars.count == 1 ? chars.uppercased() : chars
+            for type in [NSEvent.EventType.keyDown, .keyUp] {
+                guard let event = NSEvent.keyEvent(
+                    with: type, location: .zero, modifierFlags: flags,
+                    timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: view.window?.windowNumber ?? 0, context: nil,
+                    characters: flags.contains(.command) ? chars : shown, charactersIgnoringModifiers: chars,
+                    isARepeat: false, keyCode: code
+                ) else { continue }
+                NSApp.postEvent(event, atStart: false)
+            }
+            answer(["pressed": combo])
 
         case "resize":
             // The window taken to another size in steps, a frame apart, the

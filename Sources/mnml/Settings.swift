@@ -15,12 +15,13 @@ struct SettingsPanel: View {
     @State private var page: Page = Page(rawValue: Store.settings.string(forKey: "settings.page") ?? "") ?? .general
 
     enum Page: String, CaseIterable, Identifiable {
-        case general, tabs, extensions, passwords, downloads, privacy, about
+        case general, tabs, shortcuts, extensions, passwords, downloads, privacy, about
         var id: String { rawValue }
         var title: String {
             switch self {
             case .general: return "General"
             case .tabs: return "Tabs"
+            case .shortcuts: return "Shortcuts"
             case .extensions: return "Extensions"
             case .passwords: return "Passwords"
             case .downloads: return "Downloads"
@@ -32,6 +33,7 @@ struct SettingsPanel: View {
             switch self {
             case .general: return "macwindow"
             case .tabs: return "rectangle.split.3x1"
+            case .shortcuts: return "keyboard"
             case .extensions: return "puzzlepiece.extension"
             case .passwords: return "key"
             case .downloads: return "arrow.down.circle"
@@ -42,8 +44,9 @@ struct SettingsPanel: View {
     }
 
     private static let rail: CGFloat = 168
-    private static let width: CGFloat = 660
     private static let height: CGFloat = 500
+    /// Wider for Shortcuts, which has a list and the one you picked side by side.
+    private var width: CGFloat { page == .shortcuts ? 880 : 660 }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -51,7 +54,8 @@ struct SettingsPanel: View {
             Rectangle().fill(Palette.hairline).frame(width: 1)
             content
         }
-        .frame(width: SettingsPanel.width, height: SettingsPanel.height)
+        .frame(width: width, height: SettingsPanel.height)
+        .animation(Motion.glide, value: page)
         .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -128,6 +132,10 @@ struct SettingsPanel: View {
             }
             .padding(.bottom, 16)
 
+            if page == .shortcuts {
+                // Its list scrolls on its own; the page around it doesn't.
+                ShortcutsPage(browser: browser, store: browser.shortcuts)
+            } else {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     switch page {
@@ -138,9 +146,11 @@ struct SettingsPanel: View {
                     case .downloads: downloads
                     case .privacy: privacy
                     case .about: about
+                    case .shortcuts: EmptyView()
                     }
                 }
                 .padding(.bottom, 4)
+            }
             }
         }
         .padding(.horizontal, 22)
@@ -361,19 +371,19 @@ struct SettingsPanel: View {
             }
 
             Card {
-                Shortcut("⌘L", "Address")
+                Shortcut(["file.openAddress"], "Address")
                 Rule()
-                Shortcut("⌘K", "Switch tab")
+                Shortcut(["tabs.search"], "Switch tab")
                 Rule()
-                Shortcut("⌘T  ⌘W  ⇧⌘T", "New, close, reopen tab")
+                Shortcut(["file.newTab", "file.closeTab", "file.reopen"], "New, close, reopen tab")
                 Rule()
-                Shortcut("⇧⌘S", "Tabs in a sidebar")
+                Shortcut(["view.sidebar"], "Tabs in a sidebar")
                 Rule()
-                Shortcut("⇧⌘R", "Reading mode")
+                Shortcut(["view.reader"], "Reading mode")
                 Rule()
-                Shortcut("⇧⌘H", "Hide something on this site")
+                Shortcut(["view.hide"], "Hide something on this site")
                 Rule()
-                Shortcut("⇧⌘P", "Float the video")
+                Shortcut(["view.float"], "Float the video")
             }
         }
     }
@@ -440,25 +450,20 @@ struct SettingsPanel: View {
 
     // MARK: - pieces
 
-    /// A keystroke and what it does.
-    private struct Shortcut: View {
-        let keys: String
-        let does: String
-        init(_ keys: String, _ does: String) { self.keys = keys; self.does = does }
-
-        var body: some View {
-            HStack {
-                Text(does)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.ink)
-                Spacer()
-                Text(keys)
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundStyle(Palette.muted)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+    /// What some commands do, on the keys they have now (Settings › Shortcuts).
+    private func Shortcut(_ ids: [String], _ does: String) -> some View {
+        let keys = ids.map { browser.shortcuts.key(for: $0)?.display ?? "Off" }.joined(separator: "  ")
+        return HStack {
+            Text(does)
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.ink)
+            Spacer()
+            Text(keys)
+                .font(.system(size: 12, design: .rounded))
+                .foregroundStyle(Palette.muted)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
     }
 }
 
