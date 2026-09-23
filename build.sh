@@ -4,6 +4,8 @@
 # fetches.
 #
 #   ./build.sh                 debug-free release build, ad-hoc signed: runs here
+#   ./build.sh release install + quits mnml, puts it in /Applications and opens
+#                                it again — 1Password trusts browsers only there
 #   ./build.sh release dmg     + build/mnml.dmg, build/mnml.zip and
 #                                build/appcast.json, signed with Developer ID
 #                                if there is one in the keychain
@@ -152,11 +154,22 @@ if [ -n "$IDENTITY" ]; then
   echo "signed as: $IDENTITY"
 else
   codesign --force --deep --sign - "$APP" 2>/dev/null || true
-  [ "$STEP" != "app" ] && echo "no Developer ID certificate found — the DMG will only open on this Mac" >&2
+  [ "$STEP" != "app" ] && [ "$STEP" != "install" ] && echo "no Developer ID certificate found — the DMG will only open on this Mac" >&2
 fi
 
 echo "built: $APP ($VERSION, build $BUILD)"
 [ "$STEP" = "app" ] && exit 0
+
+if [ "$STEP" = "install" ]; then
+  # Quit the way ⌘Q does, so the session is saved and comes back.
+  osascript -e 'quit app id "com.farchan.mnml"' 2>/dev/null || true
+  while pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null; do sleep 0.2; done
+  rm -rf "/Applications/$NAME.app"
+  ditto "$APP" "/Applications/$NAME.app"
+  open "/Applications/$NAME.app"
+  echo "installed: /Applications/$NAME.app"
+  exit 0
+fi
 
 # The disk image: the app beside a shortcut to Applications, on a white
 # window with an arrow between them — drawn by Installer/background.swift and
