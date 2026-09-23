@@ -712,7 +712,22 @@ enum ExtensionShims {
             return !!a.default_popup && new URL(a.default_popup, location.origin + "/").pathname === location.pathname;
           } catch (e) { return false; }
         })();
-        if (chrome.tabs && typeof chrome.tabs.getCurrent === "function") {
+        // An extension's page framed inside a website — 1Password's fill
+        // menu over a sign-in form — runs in that website's process, and
+        // WebKit ends the process, page and all, the moment it asks for
+        // tabs.getCurrent. The page would load, add the frame, and go down
+        // again, over and over. Chrome answers undefined outside a tab of
+        // the extension's own, and so does this, without asking.
+        const framedInWebsite = (() => {
+          try { return [...(location.ancestorOrigins || [])].some((o) => o !== location.origin); }
+          catch (e) { return false; }
+        })();
+        if (framedInWebsite && chrome.tabs && typeof chrome.tabs.getCurrent === "function") {
+          put(chrome.tabs, "getCurrent", (callback) => {
+            if (typeof callback === "function") { setTimeout(() => callback(undefined)); return; }
+            return Promise.resolve(undefined);
+          });
+        } else if (chrome.tabs && typeof chrome.tabs.getCurrent === "function") {
           const getCurrent = chrome.tabs.getCurrent.bind(chrome.tabs);
           const current = () => Promise.resolve(getCurrent()).then((t) => {
             if (t && !(t.index >= 0 && t.index < 1e6)) { popup = true; return undefined; }

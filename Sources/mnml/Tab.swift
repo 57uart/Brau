@@ -720,9 +720,20 @@ final class Tab: ObservableObject, Identifiable {
     /// did nothing actually was.
     func recoverFromCrash() {
         guard let address else { return }
+        // A page that takes its process down every time it loads would
+        // flicker between white and itself for ever. Three in twenty
+        // seconds and it stops, saying so; reloading by hand tries again.
+        let now = Date()
+        crashes = crashes.filter { now.timeIntervalSince($0) < 20 } + [now]
+        guard crashes.count < 3 else {
+            crashes = []
+            failure = "This page keeps crashing"
+            return
+        }
         failure = nil
         loadAndVerify(address)
     }
+    private var crashes: [Date] = []
 
     /// `web.load`, checked a moment later rather than trusted outright: a
     /// load handed to WebKit right after a process just died, or as the
