@@ -27,7 +27,9 @@ struct KeyCombo: Codable, Hashable {
     /// names it with nothing held — so ⇧⌘] is "]" with shift, not "}".
     init?(event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let named = KeyCombo.names[event.keyCode]
+        // The top row by where it sits: on AZERTY and many other layouts it
+        // types &, é, "… so ⌘1 has to be the key, not the character.
+        let named = KeyCombo.names[event.keyCode] ?? ContentView.digits[event.keyCode].map(String.init)
         guard let key = named ?? event.characters(byApplyingModifiers: [])?.lowercased() ?? event.charactersIgnoringModifiers?.lowercased(),
               !key.isEmpty
         else { return nil }
@@ -181,6 +183,11 @@ struct Command: Identifiable {
             Command("edit.findPrevious", "Find Previous", .edit, KeyCombo("g", shift: true), "The match before this one.") { $0.look(forward: false) },
 
             Command("view.sidebar", "Show Tabs in Sidebar", .view, KeyCombo("s", shift: true), "Tabs down the left, or across the top.") { $0.toggleSidebar() },
+            .when("view.fold", "Hide Sidebar", .view, KeyCombo("s"), "Folds the column of tabs away so the page has the whole window; the left edge brings it back. Only with tabs in a sidebar.") { browser in
+                guard browser.prefs.sidebar else { return false }
+                browser.toggleFold()
+                return true
+            },
             Command("view.reload", "Reload Page", .view, KeyCombo("r"), "Loads the page again.") { $0.reload() },
             Command("view.reader", "Reading Mode", .view, KeyCombo("r", shift: true), "Just the article, set for reading.") { $0.toggleReader() },
             Command("view.float", "Float Video", .view, KeyCombo("p", shift: true), "The video on this page in a window of its own, above everything.") { $0.toggleFloat() },

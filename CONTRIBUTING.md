@@ -6,6 +6,22 @@ This is a small, mostly-solo project, reviewed the same way it's written. Contri
 
 For anything beyond a small fix, open an issue first describing what you want to change and why. It saves a rewritten pull request later if the direction doesn't fit.
 
+## New features: off until someone turns them on
+
+mnml stays small by default. Anything new that changes how the browser
+looks or behaves — spaces, groups, a visible address bar, a new panel — is:
+
+- **minimal**: the smallest version that does the job, in the app's own quiet style;
+- **optional, and off by default**: someone who never asks for it never sees it;
+- **findable**: a switch in Settings, and a mention in the welcome screens if it's a big one, so people know it's there to turn on.
+
+Fixes and things every browser is expected to do (Tab moving between a form's fields, ⌘1–⌘9) don't need a switch. Before building a bigger feature, look at how other browsers do it and read what people asked for on its issue; [ROADMAP.md](ROADMAP.md) lists where each request came from.
+
+## Where things are tracked
+
+- [ROADMAP.md](ROADMAP.md): everything asked for and not done yet, sorted into what's next and what isn't planned.
+- [CHANGELOG.md](CHANGELOG.md): what has changed since the last version. A pull request that fixes or adds something also adds its line under **Unreleased** (and takes its item off the roadmap), so the next update's notes write themselves.
+
 ## What tends to get merged
 
 - **Small, focused changes.** One thing per pull request, easy to read start to finish.

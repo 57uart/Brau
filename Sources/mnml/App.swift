@@ -48,6 +48,10 @@ struct MnmlApp: App {
                     set: { _ in browser.toggleSidebar() }
                 ))
                 .keyboardShortcut(key("view.sidebar"))
+                // Folded away, not moved (see Fold.swift).
+                Button(browser.folded ? "Show Sidebar" : "Hide Sidebar") { browser.run("view.fold") }
+                    .keyboardShortcut(key("view.fold"))
+                    .disabled(!browser.prefs.sidebar)
                 Picker("Tabs Wear", selection: Binding(
                     get: { browser.prefs.glyph },
                     set: { browser.prefs.glyph = $0 }
@@ -352,6 +356,8 @@ struct ContentView: View {
 
     var body: some View {
         window_
+            // The column folded away, and out again at the edge (see Fold.swift).
+            .overlay(alignment: .leading) { Fold(browser: browser, prefs: browser.prefs) }
             .overlay(alignment: .bottom) { bars }
             .overlay { field }
             .overlay { panels }
@@ -576,9 +582,9 @@ struct ContentView: View {
         .transition(.opacity)
     }
 
-    /// True while the tabs are down the left.
+    /// True while the tabs are down the left, and not folded away (see Fold.swift).
     private var sidebar: Bool {
-        browser.prefs.sidebar && browser.active?.immersed != true
+        browser.prefs.sidebar && !browser.folded && browser.active?.immersed != true
     }
 
     /// The column has its own corner for the lights, so the page beside it
@@ -618,6 +624,10 @@ struct ContentView: View {
         // The strip does the dragging, so the page underneath can't be grabbed
         // by accident while selecting text.
         window.isMovableByWindowBackground = false
+        // Nor by its title bar, which the strip is all the way down: AppKit
+        // would move the window on any drag there, a tab picked up to take
+        // it elsewhere in the row included. DragStrip moves it instead.
+        window.isMovable = false
         // Where you left it, at the size you left it. A test run keeps its
         // own: the name lives in the app's standard defaults, which every
         // copy shares, and a probe resized for a test once changed the size
@@ -669,6 +679,11 @@ struct ContentView: View {
         }
     }
 
+    /// The keys of the top row, by where they sit rather than what they type.
+    static let digits: [UInt16: Int] = [
+        18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9, 29: 0,
+    ]
+
     private func take(_ event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
@@ -682,9 +697,10 @@ struct ContentView: View {
             return true
         }
 
-        if event.keyCode == 48, flags.contains(.control),
+        // ⌃Tab with the recently used switcher on (Settings › Tabs): tabs in
+        // the order you last looked at them. Off, ⌃Tab walks the row below.
+        if browser.prefs.mruSwitcher, event.keyCode == 48, flags.contains(.control),
            !flags.contains(.command), !flags.contains(.option) {
-            guard browser.prefs.mruSwitcher else { return true }
             guard canSwitchTabs else { return false }
             if !event.isARepeat, let current = browser.activeID {
                 browser.tabSwitcher.step(
@@ -762,23 +778,33 @@ struct ContentView: View {
             return true
         }
 
-        // Tab walks the row and comes round to the first again; ⇧Tab walks it
-        // the other way. Other browsers give Tab to the page — here the row is
-        // the only thing there is to move between, so it gets the key.
+        // Tab is the page's: it moves between a form's fields and a page's
+        // links, as in every browser. It used to walk the row of tabs, which
+        // took it from anyone filling in a form. ⌃Tab walks the row and comes
+        // round to the first again, ⌃⇧Tab the other way — the keys every
+        // other browser uses for that.
         //
-        // Except while an address is being typed. Then the list under the field
-        // is what there is to move through, and Return takes whatever the walk
-        // landed on.
-        if event.keyCode == 48, !flags.contains(.command), !flags.contains(.option), !flags.contains(.control) {
+        // While an address is being typed, the list under the field is what
+        // there is to move through, and Return takes whatever the walk landed on.
+        if event.keyCode == 48, !flags.contains(.command), !flags.contains(.option) {
+            if flags.contains(.control) {
+                browser.step(flags.contains(.shift) ? -1 : 1)
+                return true
+            }
             if browser.editingTab != nil { return true }
-            // Filling something in on the page: the key belongs to the field,
-            // which may well be offering a completion to take with it.
-            if !browser.fieldShowing, browser.active?.typing == true { return false }
             if browser.fieldShowing, !browser.offers.isEmpty {
                 browser.walk(flags.contains(.shift) ? -1 : 1)
                 return true
             }
-            browser.step(flags.contains(.shift) ? -1 : 1)
+            return false
+        }
+
+        // ⌃1–⌃9 go to that space, when there are spaces — by the key, as
+        // ⌘1–⌘9 are below, so the top row works on every layout.
+        if browser.prefs.usesSpaces, flags.contains(.control),
+           flags.isDisjoint(with: [.command, .option, .shift]),
+           let number = ContentView.digits[event.keyCode], number > 0 {
+            browser.switchSpace(index: number - 1)
             return true
         }
 

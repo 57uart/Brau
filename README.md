@@ -4,7 +4,7 @@ A small, fast, quiet web browser for the Mac, by [Office Commun](https://officec
 
 ![mnml, with its tabs down the left and a page taking the rest of the window](.github/screenshot.png)
 
-**[Download for macOS →](https://officecommun.com/search)** · macOS 14 or later · free · about 2 MB
+**[Download for macOS →](https://officecommun.com/search)** · macOS 14 or later · free · about 3 MB
 
 ---
 
@@ -12,7 +12,7 @@ A small, fast, quiet web browser for the Mac, by [Office Commun](https://officec
 
 mnml is a browser with nothing in the way. A row of tabs — across the top or down the left, your choice — and the page. There is no toolbar, no start page, no sidebar of suggestions, no account to sign into, nothing that wants your attention. You type an address or a few words in one field and you are on the page.
 
-It uses **WebKit**, the engine already inside every Mac (it is what Safari runs on). That is why the whole app is about 5 MB on disk and opens instantly: there is no second copy of Chromium to download, update and keep in memory.
+It uses **WebKit**, the engine already inside every Mac (it is what Safari runs on). That is why the whole app is about 3 MB on disk and opens instantly: there is no second copy of Chromium to download, update and keep in memory.
 
 It was built by a design studio that spends its whole day in a browser and was tired of the ones that had become products. This one is a tool.
 
@@ -56,10 +56,10 @@ A **private tab** (`⇧⌘N`) has its own cookie jar and leaves nothing behind w
 | | |
 |---|---|
 | `⌘L` address · `⌘K` switch tab · `⌘T` new tab · `⌘W` close · `⇧⌘T` reopen | `⌘[` `⌘]` back, forward · `⇧⌘[` `⇧⌘]` previous, next tab · `⌘1`–`⌘9` jump |
-| `⇧⌘S` tabs across the top or down the left · `⇧⌘B` bookmark this page | `⇧⌘R` reading mode · `⇧⌘P` float the video · `⇧⌘H` hide something · `⇧⌘U` what is hidden here |
+| `⇧⌘S` tabs across the top or down the left · `⌘S` fold the sidebar away · `⇧⌘B` bookmark this page | `⇧⌘R` reading mode · `⇧⌘P` float the video · `⇧⌘H` hide something · `⇧⌘U` what is hidden here |
 | `⌘F` find · `⌘D` duplicate tab · `⇧⌘C` copy address · `⇧⌘V` paste and go | `⌘Y` history · `⇧⌘J` downloads · `⌘,` settings · `⌥⌘L` passwords |
 
-`Tab` walks along the row of tabs; `esc` puts away whatever is open.
+`⌃Tab` and `⌃⇧Tab` walk along the row of tabs; `Tab` stays the page's, for moving through a form. `esc` puts away whatever is open.
 
 ---
 
