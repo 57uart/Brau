@@ -111,7 +111,10 @@ enum ExtensionNative {
 /// One host program and the framing Chrome uses to talk to it.
 @available(macOS 15.4, *)
 final class HostPipe: @unchecked Sendable {
-    private let process = Process()
+    private let program: URL
+    private let origin: String
+    private var pid: pid_t = 0
+    private var reaper: DispatchSourceProcess?
     private let input = Pipe()
     private let output = Pipe()
     private var buffer = Data()
@@ -121,14 +124,39 @@ final class HostPipe: @unchecked Sendable {
     private var waiters: [CheckedContinuation<Any?, Error>] = []
 
     init(program: URL, origin: String) {
-        process.executableURL = program
-        process.arguments = [origin]
-        process.standardInput = input
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
+        self.program = program
+        self.origin = origin
     }
 
+    /// Spawned the way Chrome spawns a host, not with Process: in this
+    /// app's own process group, responsibility disclaimed, working in the
+    /// host's folder. Hosts that check who is calling look at exactly that —
+    /// 1Password's refuses a host that Process put in a group of its own
+    /// ("BrowserSupport was not part of the main browser's tree").
     func start() throws {
+        var actions: posix_spawn_file_actions_t?
+        posix_spawn_file_actions_init(&actions)
+        defer { posix_spawn_file_actions_destroy(&actions) }
+        posix_spawn_file_actions_adddup2(&actions, input.fileHandleForReading.fileDescriptor, STDIN_FILENO)
+        posix_spawn_file_actions_adddup2(&actions, output.fileHandleForWriting.fileDescriptor, STDOUT_FILENO)
+        posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0)
+        posix_spawn_file_actions_addchdir_np(&actions, program.deletingLastPathComponent().path)
+
+        var attributes: posix_spawnattr_t?
+        posix_spawnattr_init(&attributes)
+        defer { posix_spawnattr_destroy(&attributes) }
+        // Only what the parent has open on purpose reaches the host.
+        posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))
+        _ = HostPipe.disclaim?(&attributes, 1)
+
+        let argv: [UnsafeMutablePointer<CChar>?] = [strdup(program.path), strdup(origin), nil]
+        defer { argv.forEach { free($0) } }
+        let status = posix_spawn(&pid, program.path, &actions, &attributes, argv, environ)
+        guard status == 0 else { throw ExtensionNative.Refused(why: "Couldn't start the native host (\(status))") }
+        // The host's ends are its own now.
+        try? input.fileHandleForReading.close()
+        try? output.fileHandleForWriting.close()
+
         output.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             guard let self else { return }
@@ -139,14 +167,28 @@ final class HostPipe: @unchecked Sendable {
             }
             self.take(chunk)
         }
-        process.terminationHandler = { [weak self] _ in self?.finish() }
-        try process.run()
+        let reaper = DispatchSource.makeProcessSource(identifier: pid, eventMask: .exit)
+        reaper.setEventHandler { [weak self, pid] in
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            self?.reaper?.cancel()
+            self?.finish()
+        }
+        reaper.resume()
+        self.reaper = reaper
     }
 
     func stop() {
         output.fileHandleForReading.readabilityHandler = nil
-        if process.isRunning { process.terminate() }
+        if pid > 0, reaper?.isCancelled == false { kill(pid, SIGTERM) }
     }
+
+    /// Chrome's call for the same thing: the host, not the browser, is what
+    /// macOS asks about camera, contacts and the rest. Private, so looked up.
+    private static let disclaim: (@convention(c) (UnsafeMutablePointer<posix_spawnattr_t?>, Int32) -> Int32)? = {
+        dlsym(UnsafeMutableRawPointer(bitPattern: -2), "responsibility_spawnattrs_setdisclaim")
+            .map { unsafeBitCast($0, to: (@convention(c) (UnsafeMutablePointer<posix_spawnattr_t?>, Int32) -> Int32).self) }
+    }()
 
     func write(_ message: Any) throws {
         let json = try JSONSerialization.data(withJSONObject: message, options: [.fragmentsAllowed])
