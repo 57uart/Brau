@@ -44,9 +44,10 @@ struct SettingsPanel: View {
     }
 
     private static let rail: CGFloat = 168
+    /// Room for Shortcuts' list and the one you picked side by side; every
+    /// page gets the same, so the panel doesn't change size under you.
+    private static let width: CGFloat = 780
     private static let height: CGFloat = 500
-    /// Wider for Shortcuts, which has a list and the one you picked side by side.
-    private var width: CGFloat { page == .shortcuts ? 880 : 660 }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -54,8 +55,7 @@ struct SettingsPanel: View {
             Rectangle().fill(Palette.hairline).frame(width: 1)
             content
         }
-        .frame(width: width, height: SettingsPanel.height)
-        .animation(Motion.glide, value: page)
+        .frame(width: SettingsPanel.width, height: SettingsPanel.height)
         .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)

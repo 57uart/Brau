@@ -55,7 +55,7 @@ struct ShortcutsPage: View {
 
             HStack(alignment: .top, spacing: 16) {
                 list
-                    .frame(width: 320)
+                    .frame(width: 310)
                 if let command = Command.named(selected) {
                     ShortcutDetail(browser: browser, store: store, command: command)
                         .id(command.id)
