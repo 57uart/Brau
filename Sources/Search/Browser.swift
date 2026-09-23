@@ -1747,7 +1747,19 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         tab.uncover(after: 0.45)
     }
 
+    /// The page has drawn something: a view kept out of sight until now, so
+    /// as not to show the white it starts as, comes in. WebKit calls this only
+    /// on a view asked to — see `PageView.holdForFirstFrame()`.
+    @objc(_webView:renderingProgressDidChange:)
+    func webView(_ webView: WKWebView, renderingProgressDidChange events: UInt) {
+        guard events & PageView.firstFrame != 0 else { return }
+        (webView as? PageView)?.showFirstFrame()
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        // A page with nothing to lay out never has a first frame. Done is
+        // done, and it is shown.
+        (webView as? PageView)?.showFirstFrame()
         guard let tab = tab(for: webView), let url = tab.address else { return }
         tab.uncover()
         tellStore(tab)

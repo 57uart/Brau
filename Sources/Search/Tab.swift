@@ -273,6 +273,7 @@ final class Tab: ObservableObject, Identifiable {
         web.allowsBackForwardNavigationGestures = false
         web.onPull = { [weak self] pull in self?.pull = pull }
         web.onTouch = { [weak self] in self?.uncover() }
+        web.holdForFirstFrame()
         // Pages follow the appearance of the window they are drawn in, and the
         // window follows Settings › Appearance — so a site that honours
         // prefers-color-scheme goes dark with the frame, and not otherwise.
@@ -957,6 +958,41 @@ final class PageView: WKWebView {
     static func same(_ one: NSEvent, _ other: NSEvent) -> Bool {
         one === other || (one.timestamp == other.timestamp && one.keyCode == other.keyCode && one.type == other.type)
     }
+
+    // MARK: - the first frame
+
+    /// A web view that has never drawn is opaque white. In a dark window that
+    /// is a flash of it between a link that opens a tab and the page arriving,
+    /// so a fresh view starts unseen, over the window's own ground, and comes
+    /// in once WebKit says there is something on it worth seeing.
+    private(set) var unpainted = false
+
+    /// WebKit says when the first frame is only through names outside the
+    /// public framework, so it is asked whether it answers to them first. One
+    /// that doesn't gets a view shown straight away, as before.
+    func holdForFirstFrame() {
+        let observe = NSSelectorFromString("_setObservedRenderingProgressEvents:")
+        guard responds(to: observe) else { return }
+        typealias Setter = @convention(c) (AnyObject, Selector, UInt) -> Void
+        unsafeBitCast(method(for: observe), to: Setter.self)(self, observe, PageView.firstFrame)
+        unpainted = true
+        alphaValue = 0
+    }
+
+    /// In, quickly: the page is there, and the fade only covers the frame
+    /// between WebKit laying it out and putting it on screen.
+    func showFirstFrame() {
+        guard unpainted else { return }
+        unpainted = false
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.12
+            animator().alphaValue = 1
+        }
+    }
+
+    /// _WKRenderingProgressEventFirstVisuallyNonEmptyLayout — the moment
+    /// Safari takes down the picture it shows while a page comes back.
+    static let firstFrame: UInt = 1 << 1
 
     // MARK: - two fingers sideways
 

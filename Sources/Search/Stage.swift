@@ -163,7 +163,8 @@ final class StageView: NSView {
             // A web view can have only one superview, so taking it back is how
             // it is taken back.
             wanted.removeFromSuperview()
-            wanted.alphaValue = 1
+            // Seen — unless it has yet to draw, and would be seen white.
+            wanted.alphaValue = (wanted as? PageView)?.unpainted == true ? 0 : 1
             addSubview(wanted)
             // A web view coming back into a window sometimes keeps the last
             // picture it had — which, after a while out of one, is nothing.
