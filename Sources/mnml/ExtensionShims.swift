@@ -2662,12 +2662,16 @@ enum ExtensionAuth {
         }
     }
 
-    /// True when the address is an extension's OAuth redirect, which is then
-    /// handed over and never loaded.
-    static func intercept(_ url: URL, browser: Browser) -> Bool {
+    /// True when the address is an extension's OAuth redirect arriving in
+    /// the tab that began the sign-in, which is then handed over and never
+    /// loaded. Any page can go to an address shaped like one of these, and
+    /// what it carries would be delivered as the flow's answer: only the
+    /// tab the flow was started in may finish it.
+    static func intercept(_ url: URL, browser: Browser, from webView: WKWebView) -> Bool {
         guard let host = url.host()?.lowercased(), host.hasSuffix(".chromiumapp.org") else { return false }
         let id = String(host.dropLast(".chromiumapp.org".count))
-        guard let entry = waiting.removeValue(forKey: id) else { return false }
+        guard let entry = waiting[id], browser.tab(for: webView)?.id == entry.tab else { return false }
+        waiting.removeValue(forKey: id)
         entry.finish(.success(url))
         if let tab = browser.tabs.first(where: { $0.id == entry.tab }) { browser.close(tab) }
         return true
