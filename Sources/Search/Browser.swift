@@ -2020,6 +2020,8 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // did nothing at all. Each tab gets a controller of its own.
         configuration.userContentController = WKUserContentController()
         let tab = Tab(shy: tab(for: webView)?.shy ?? false, configuration: configuration)
+        tab.popup = windowFeatures.width != nil || windowFeatures.height != nil
+            || windowFeatures.toolbarsVisibility?.boolValue == false
         adopt(tab)
         tab.opener = from
         activeID = tab.id
