@@ -450,7 +450,10 @@ struct ContentView: View {
             .overlay(alignment: .bottom) { bars }
             .overlay { field }
             .overlay { panels }
-            .animation(Motion.settle, value: browser.fieldShowing)
+            // The field comes on its spring, and goes quickly: once Return
+            // is pressed the page is on its way, and the field is not what
+            // there is to watch.
+            .animation(browser.fieldShowing ? Motion.settle : Motion.quick, value: browser.fieldShowing)
             .background(WindowSetup { window = $0; dress($0) })
             .onChange(of: browser.prefs.sidebar) { _, _ in
                 DispatchQueue.main.async { measureLights() }
