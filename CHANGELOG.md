@@ -32,6 +32,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Fixed
 
+- A page gets the shortcuts it uses before Search does, as in Chrome: ⌘K in Slack, ⌘F in a Google Doc, ⌘S in an editor. Search acts only if the page leaves the key unused. The keys that open, close and switch tabs (⌘T, ⌘W, ⌘⇧T, ⌘⇧N, ⌘1–⌘9, ⌘⇧[ and ⌘⇧]) stay Search's, and the menus are unchanged. Thanks [@AbhiPanseriya](https://x.com/AbhiPanseriya) for the report. Refs [#147](https://github.com/driceroland/Search/issues/147)
 - The list under the address field keeps up with a paste or a keystroke: its rows change at once instead of sliding into place on a spring, it comes and goes with a short fade, and the field steps aside quickly once Return is pressed. Thanks [@andupoto](https://x.com/andupoto) for the report
 - Hiding or showing the sidebar, or the tab bar across the top, no longer judders along the right of the window: the page slides with them and is laid out once at its new size, instead of on every frame of the slide — which also let it overshoot the window for a moment. Thanks [@infomiho](https://x.com/infomiho) for the report
 - Session Buddy opens when its button is pressed. It listens at start for a window changing size, which Chrome reports and WebKit doesn't, and gave up there before listening for its button; Search now offers that event too. Thanks [@andupoto](https://x.com/andupoto) for the report

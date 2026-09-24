@@ -732,6 +732,35 @@ struct ContentView: View {
             }
             return take(event) ? nil : event
         }
+        ContentView.keyHook = { event in take(event) ? nil : event }
+    }
+
+    /// The same handling the key monitor gives an event, for the bench to
+    /// put a key through the app's own path.
+    static var keyHook: ((NSEvent) -> NSEvent?)?
+
+    /// The last key handed to the page before Search acted on it (see
+    /// `pageFirst`): if WebKit sends it back unused, it is Search's.
+    private static var passed: NSEvent?
+
+    /// A key a page may want for itself — ⌘K in Slack, ⌘F in a Google Doc,
+    /// ⌘S in an editor — goes to the page first, as it does in Chrome, and is
+    /// Search's only if the page leaves it unused: WebKit then sends the same
+    /// event back through the app, and it comes here a second time. Only
+    /// while the page has the keyboard; in the address field or a panel,
+    /// Search's keys are Search's. The keys that make and close tabs and move
+    /// between them stay Search's first, as Chrome keeps them its own.
+    private func pageFirst(_ event: NSEvent, key: String, shifted: Bool) -> Bool {
+        let reserved = (key == "t") || (key == "w" && !shifted) || (key == "n" && shifted)
+            || ((key == "[" || key == "]" || key == "{" || key == "}") && shifted)
+            || (key == "z" && browser.veiling)
+        guard !reserved, event.window?.firstResponder is PageView else { return false }
+        if let passed = ContentView.passed, PageView.same(passed, event) {
+            ContentView.passed = nil
+            return false
+        }
+        ContentView.passed = event
+        return true
     }
 
     /// The keys of the top row, by where they sit rather than what they type.
@@ -856,6 +885,9 @@ struct ContentView: View {
             }
             return true
         }
+
+        // The page's turn first, for the keys it may want (Refs #147).
+        if pageFirst(event, key: key, shifted: shifted) { return false }
 
         switch key {
         case "t" where !shifted:
