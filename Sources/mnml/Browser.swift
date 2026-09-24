@@ -1119,9 +1119,7 @@ final class Browser: NSObject, ObservableObject {
         // never gone to cleared away — a row of identical empty tabs is what
         // pressing ⌘T twice, or holding it, used to leave.
         if let blank = tabs.last(where: { $0.isBlank && !$0.bench && !$0.shy }) {
-            if let end = tabs.indices.last, tabs.firstIndex(where: { $0.id == blank.id }) != end {
-                move(blank, to: end)
-            }
+            place(new: blank)
             if activeID != blank.id { leaving() }
             activeID = blank.id
             summoning = false
@@ -1133,6 +1131,7 @@ final class Browser: NSObject, ObservableObject {
         }
         let tab = Tab()
         adopt(tab)
+        place(new: tab)
         leaving()
         activeID = tab.id
         summoning = false
@@ -1458,9 +1457,7 @@ final class Browser: NSObject, ObservableObject {
         // Never two empty private tabs, as ⌘T never makes two empty ones:
         // one already open comes to the end of the row and is the one opened.
         if let blank = tabs.last(where: { $0.isBlank && $0.shy && !$0.bench }) {
-            if let end = tabs.indices.last, tabs.firstIndex(where: { $0.id == blank.id }) != end {
-                move(blank, to: end)
-            }
+            place(new: blank)
             if activeID != blank.id { leaving() }
             activeID = blank.id
             summoning = false
@@ -1540,6 +1537,18 @@ final class Browser: NSObject, ObservableObject {
         settling = false
         settleGroups()
         activeID = active ?? row.first?.id
+    }
+
+    /// A new tab, or the empty one reused for it, where Settings › Tabs says
+    /// new tabs go: the top of the list, under the pinned tabs and pinned
+    /// groups, or the bottom. On its own, out of any group.
+    private func place(new tab: Tab) {
+        guard tab.pin == nil else { return }
+        if tab.group != nil { ungroup([tab]) }
+        let loose = tabs.firstIndex { $0.pin == nil && $0.id != tab.id && $0.group.flatMap(group)?.pinned != true }
+        let home = prefs.newTabs == .top ? (loose ?? tabs.count - 1) : tabs.count - 1
+        guard let here = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+        move(tab, to: here < home && prefs.newTabs == .top ? home - 1 : home)
     }
 
     private func adopt(_ tab: Tab) {

@@ -295,12 +295,13 @@ struct SideBar: View {
                 }
                 .padding(.bottom, 10)
             }
+            newTab(at: .top)
             VStack(spacing: SideBar.gap) {
                 ForEach(rest) { tab in
                     SideRow(browser: browser, prefs: prefs, tab: tab, live: tab.id == row.active, pill: pill, close: {})
                 }
             }
-            newTab
+            newTab(at: .bottom)
         }
         .allowsHitTesting(false)
     }
@@ -490,11 +491,13 @@ struct SideBar: View {
                     .report(.line)
                     .padding(.bottom, 8)
             }
-            newTab
+            newTab(at: .top)
             VStack(spacing: SideBar.gap) {
                 ForEach(entries(pinned: false)) { entry in entryView(entry) }
             }
-            .padding(.top, SideBar.gap)
+            .padding(.top, prefs.showsNewTab && prefs.newTabs == .top ? SideBar.gap : 0)
+            newTab(at: .bottom)
+                .padding(.top, SideBar.gap)
         }
         .coordinateSpace(name: "column")
         .onPreferenceChange(RowFrames.self) { frames = $0; if !Bench.drawingColumn { Bench.rowFrames = $0 } }
@@ -757,6 +760,12 @@ struct SideBar: View {
 
     /// The foot's door and its margin beneath.
     private static let footHeight: CGFloat = 26 + 10
+
+    /// The New tab button, where new tabs go (Settings › Tabs), or nowhere.
+    @ViewBuilder
+    private func newTab(at place: NewTabs) -> some View {
+        if prefs.showsNewTab, prefs.newTabs == place { newTab }
+    }
 
     private var newTab: some View {
         Quiet(icon: "plus", title: "New tab", height: SideBar.row) { browser.newTab() }

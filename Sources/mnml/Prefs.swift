@@ -10,6 +10,20 @@ import SwiftUI
 
 /// What a tab wears beside its title, and what a pinned one is reduced to: a
 /// letter, or the site's own icon.
+/// Where a new tab goes in the list, and the New tab button with it.
+enum NewTabs: String, CaseIterable, Identifiable {
+    case top, bottom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .top: return "Top"
+        case .bottom: return "Bottom"
+        }
+    }
+}
+
 enum Glyph: String, CaseIterable, Identifiable {
     case letters, icons
 
@@ -51,6 +65,15 @@ final class Preferences: ObservableObject {
     /// How wide the column is. Pulled by its edge, and remembered.
     @Published var sideWidth: CGFloat {
         didSet { store.set(Double(sideWidth), forKey: "sidebar.width") }
+    }
+    /// New tabs at the top of the list, under the pinned ones, or at the
+    /// bottom — and the New tab button where they go.
+    @Published var newTabs: NewTabs {
+        didSet { store.set(newTabs.rawValue, forKey: "tabs.new") }
+    }
+    /// The New tab button in the column. ⌘T makes one either way.
+    @Published var showsNewTab: Bool {
+        didSet { store.set(showsNewTab, forKey: "tabs.newButton") }
     }
     @Published var glyph: Glyph {
         didSet { store.set(glyph.rawValue, forKey: "glyph") }
@@ -203,6 +226,8 @@ final class Preferences: ObservableObject {
         let width = store.object(forKey: "sidebar.width") as? Double ?? Double(Metrics.side)
         sideWidth = min(Metrics.sideMax, max(Metrics.sideMin, CGFloat(width)))
         glyph = store.string(forKey: "glyph").flatMap(Glyph.init) ?? .letters
+        newTabs = store.string(forKey: "tabs.new").flatMap(NewTabs.init) ?? .bottom
+        showsNewTab = store.object(forKey: "tabs.newButton") as? Bool ?? true
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? .standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         sleepsTabs = store.object(forKey: "tabs.sleep") as? Bool ?? true

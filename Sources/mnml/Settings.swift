@@ -269,6 +269,14 @@ struct SettingsPanel: View {
                 }
             }
             Rule()
+            Line("New tabs open at", "The top of the list, under the pinned tabs, or the bottom. Across the top, the left or the right") {
+                Segmented(options: NewTabs.allCases.map { ($0, $0.title) }, selection: $prefs.newTabs)
+            }
+            Rule()
+            Line("Show the New tab button", "In the sidebar, where new tabs open. ⌘T makes one either way") {
+                Switch(on: $prefs.showsNewTab)
+            }
+            Rule()
             Line("Tabs show", "Beside the title, and on a pinned square") {
                 Segmented(options: Glyph.allCases.map { ($0, $0.title) }, selection: $prefs.glyph)
             }
