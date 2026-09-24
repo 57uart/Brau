@@ -23,6 +23,12 @@ struct SideBar: View {
     /// A tab held over the middle of another long enough to make a group of the two.
     @State private var merging: Tab.ID?
     @State private var mergeCandidate: Tab.ID?
+    /// Tabs held up over the pinned squares, to be pinned when let go.
+    @State private var pinDrop = false
+    /// How far the list has scrolled up under the pins: its top, less the
+    /// top of the space it scrolls in.
+    @State private var listTop: CGFloat = 0
+    @State private var rowsTop: CGFloat = 0
     /// Where each row is, in the list's own space.
     @State private var frames: [RowKey: CGRect] = [:]
     /// How tall the list is, for the empty column below it to drag the window.
@@ -51,7 +57,9 @@ struct SideBar: View {
     private static let row: CGFloat = 28
     private static let gap: CGFloat = 2
     private static let square: CGFloat = 34
-    private static let pinGap: CGFloat = 4
+    private static let pinGap: CGFloat = 6
+    /// The narrowest a pinned square gets before a row takes one fewer.
+    private static let pinCell: CGFloat = 34
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -220,6 +228,15 @@ struct SideBar: View {
                                 }
                         }
                     }
+                    .background {
+                        // Where the rows start, under the pins, however far
+                        // they are scrolled (see `drag`).
+                        GeometryReader { box in
+                            Color.clear
+                                .onAppear { rowsTop = box.frame(in: .global).minY }
+                                .onChange(of: box.frame(in: .global).minY) { _, top in rowsTop = top }
+                        }
+                    }
                 }
                 .background {
                     // How tall the list is, for the empty column below it
@@ -244,9 +261,9 @@ struct SideBar: View {
     private func preview(_ row: Parked, pill: Namespace.ID) -> some View {
         let pins = row.tabs.filter { $0.pin != nil }
         let rest = row.tabs.filter { $0.pin == nil }
-        let cols = SideBar.pinColumns(pins.count)
+        let cols = pinColumns()
         let width = pinWidth(for: pins.count)
-        let height = min(SideBar.square, width)
+        let height = SideBar.pinHeight(for: width)
         return VStack(alignment: .leading, spacing: 0) {
             if !pins.isEmpty {
                 VStack(spacing: 0) {
@@ -282,13 +299,13 @@ struct SideBar: View {
 
     private var pinnedTabs: [Tab] { browser.tabs.filter { $0.pin != nil } }
 
-    /// Three columns is the block's own shape — up to six pins, that's two
-    /// full rows, and one or two is just those same three places with a
-    /// couple of them empty rather than a lonely row of its own width. Only
-    /// past six does the block widen, one column at a time, to stay at two
-    /// rows for as long as that's a reasonable shape at all.
-    private static func pinColumns(_ count: Int) -> Int {
-        max(3, (count + 1) / 2)
+    /// As many near-square columns as the column's width fits, as in Dia —
+    /// never fewer than three — so pulling the sidebar wider adds places to a row and a
+    /// narrow one wraps sooner. One or two pins sit in those same places
+    /// with the rest empty, rather than stretching across the row.
+    private func pinColumns() -> Int {
+        let room = prefs.sideWidth - 20 + SideBar.pinGap
+        return max(3, Int(room / (SideBar.pinCell + SideBar.pinGap)))
     }
 
     /// However many columns the count calls for, they split the row's own
@@ -298,26 +315,23 @@ struct SideBar: View {
     private var pinWidth: CGFloat { pinWidth(for: browser.pinnedCount) }
 
     private func pinWidth(for count: Int) -> CGFloat {
-        let cols = SideBar.pinColumns(count)
+        let cols = pinColumns()
         guard cols > 0 else { return SideBar.square }
         let available = prefs.sideWidth - 20 - CGFloat(cols - 1) * SideBar.pinGap
         return max(20, available / CGFloat(cols))
     }
 
-    /// The one dimension that doesn't chase the sidebar's width: past three
-    /// columns' worth of room a cell would otherwise turn into a big square
-    /// rather than the wide, short button pinned tabs actually look like
-    /// everywhere else in this app. It only shrinks below 34 alongside the
-    /// width, once a narrow column leaves no other choice.
-    private var pinHeight: CGFloat {
-        min(SideBar.square, pinWidth)
-    }
+    /// The one dimension that doesn't chase the sidebar's width: only the
+    /// width does, from square to a little wider, as in Dia.
+    private var pinHeight: CGFloat { SideBar.pinHeight(for: pinWidth) }
+
+    private static func pinHeight(for width: CGFloat) -> CGFloat { min(SideBar.square, width) }
 
     /// The grid itself: fixed-size cells, left-aligned, so a half-empty last
     /// row holds its ground rather than stretching to fill it.
     private var pinned: some View {
         let tabs = pinnedTabs
-        let cols = SideBar.pinColumns(tabs.count)
+        let cols = pinColumns()
         let width = pinWidth
         let height = pinHeight
         // Measured in the grid's own space, not the square's: a square that
@@ -479,8 +493,14 @@ struct SideBar: View {
             // Where the list sits in the window, for the bench's drags.
             GeometryReader { box in
                 Color.clear
-                    .onAppear { if !Bench.drawingColumn { Bench.listOrigin = box.frame(in: .global).origin } }
-                    .onChange(of: box.frame(in: .global).origin) { _, origin in if !Bench.drawingColumn { Bench.listOrigin = origin } }
+                    .onAppear {
+                        listTop = box.frame(in: .global).minY
+                        if !Bench.drawingColumn { Bench.listOrigin = box.frame(in: .global).origin }
+                    }
+                    .onChange(of: box.frame(in: .global).origin) { _, origin in
+                        listTop = origin.y
+                        if !Bench.drawingColumn { Bench.listOrigin = origin }
+                    }
             }
         }
         .overlay(alignment: .topLeading) {
@@ -595,6 +615,9 @@ struct SideBar: View {
                 SideRow(browser: browser, prefs: prefs, tab: tab, live: false, pill: pill, close: {})
                     .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
+                    // Over the pinned squares it shrinks towards one.
+                    .scaleEffect(pinDrop ? 0.6 : 1, anchor: .leading)
+                    .opacity(pinDrop ? 0.85 : 1)
                     .offset(y: pointer - grab)
                     .allowsHitTesting(false)
             }
@@ -625,6 +648,16 @@ struct SideBar: View {
         guard let held else { return }
         pointer = value.location.y
         let y = value.location.y
+
+        // Up past the top of the list, among the pinned squares: let go there
+        // and the tabs are pinned.
+        let pinning: Bool
+        if case .tabs = held { pinning = y < rowsTop - listTop } else { pinning = false }
+        if pinning != pinDrop {
+            withAnimation(Motion.quick) { pinDrop = pinning }
+            browser.feelDrag(firm: true)
+        }
+        guard !pinning else { return }
         let rows = dropRows(without: held)
 
         var over: Tab.ID?
@@ -680,6 +713,11 @@ struct SideBar: View {
     }
 
     private func finishDrag() {
+        if case .tabs(let ids, _)? = held, pinDrop {
+            withAnimation(Motion.settle) {
+                for tab in browser.tabs where ids.contains(tab.id) { browser.pin(tab) }
+            }
+        }
         if case .tabs(let ids, _)? = held, let merging, let target = browser.tabs.first(where: { $0.id == merging }) {
             withAnimation(Motion.settle) {
                 browser.makeGroup(of: [target] + browser.tabs.filter { ids.contains($0.id) })
@@ -687,6 +725,7 @@ struct SideBar: View {
         }
         withAnimation(Motion.settle) {
             held = nil
+            pinDrop = false
             placed = nil
             merging = nil
             mergeCandidate = nil
