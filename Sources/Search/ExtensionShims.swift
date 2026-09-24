@@ -73,8 +73,10 @@ enum ExtensionShims {
         // holds whether WebKit runs it as a worker or as a page, as a classic
         // script or a module, where a wrapper importing it would not.
         if var background = manifest["background"] as? [String: Any] {
-            if let worker = background["service_worker"] as? String {
-                let path = folder.appendingPathComponent(worker.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+            // A manifest is not a way out of its own package: a worker path
+            // that resolves outside the folder, or is a link, is left alone.
+            if let worker = background["service_worker"] as? String,
+               let path = inside(worker, of: folder) {
                 if var source = try? String(contentsOf: path, encoding: .utf8) {
                     // Already carrying one: take the old one off, so a newer
                     // Search puts its newer shim in its place.
@@ -115,9 +117,10 @@ enum ExtensionShims {
         try data.write(to: manifestURL, options: .atomic)
 
         // Every page it ships — popup, options, background page, side panel.
-        let walker = files.enumerator(at: folder, includingPropertiesForKeys: nil)
+        let walker = files.enumerator(at: folder, includingPropertiesForKeys: [.isSymbolicLinkKey])
         while let url = walker?.nextObject() as? URL {
-            guard ["html", "htm"].contains(url.pathExtension.lowercased()),
+            guard (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true,
+                  ["html", "htm"].contains(url.pathExtension.lowercased()),
                   var html = try? String(contentsOf: url, encoding: .utf8),
                   !html.contains(file)
             else { continue }
@@ -129,6 +132,21 @@ enum ExtensionShims {
             }
             try? html.write(to: url, atomically: true, encoding: .utf8)
         }
+    }
+
+    /// A path a package names, resolved and kept inside the folder it came
+    /// in: `..` in a manifest is not a way out of the package. Nor is a
+    /// symbolic link, which a folder install keeps as it is: the worker is
+    /// read through it and written back over it as a regular file, so a
+    /// link to a file elsewhere would put that file's bytes in the package.
+    /// A folder on the way that is a link is caught by where it resolves.
+    nonisolated private static func inside(_ name: String, of folder: URL) -> URL? {
+        let path = folder.appendingPathComponent(name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))).standardizedFileURL
+        guard path.path.hasPrefix(folder.standardizedFileURL.path + "/"),
+              (try? path.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true,
+              path.resolvingSymlinksInPath().path.hasPrefix(folder.resolvingSymlinksInPath().path + "/")
+        else { return nil }
+        return path
     }
 
     /// The shim as this extension gets it: with the events its code mentions
