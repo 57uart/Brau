@@ -40,7 +40,7 @@ enum ExtensionShims {
     /// every script and page an extension ships.
     nonisolated static let stamp = ".search-shim"
     nonisolated static let version: String = {
-        SHA256.hash(data: Data((script + PasskeyRelay.script).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined() + (Store.testing ? "-test" : "")
+        SHA256.hash(data: Data((script + PasskeyRelay.page).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined() + (Store.testing ? "-test" : "")
     }()
 
     nonisolated static func prepare(_ folder: URL) throws {
@@ -54,7 +54,7 @@ enum ExtensionShims {
 
         let script = shim(for: folder)
         try script.write(to: folder.appendingPathComponent(file), atomically: true, encoding: .utf8)
-        try PasskeyRelay.script.write(to: folder.appendingPathComponent(passkeys), atomically: true, encoding: .utf8)
+        try PasskeyRelay.page.write(to: folder.appendingPathComponent(passkeys), atomically: true, encoding: .utf8)
 
         // Native messaging is how the shim reaches the browser; user scripts
         // are carried out through WebKit's registered content scripts, which
@@ -204,6 +204,13 @@ enum ExtensionShims {
       // the globals away (MetaMask's LavaMoat) would break the shim's own
       // code that needs them — every fetch of a Request, every import.
       const { URL, FileReader, Response, Blob, File, DOMException, HTMLImageElement, HTMLAnchorElement, Element } = root;
+      const chrome = root.chrome || root.browser;
+      // A page's own world, where an extension's MAIN-world script runs with
+      // this before it, has no extension APIs. Nothing to mend there, and
+      // nothing may be left there for a page to see: Safari leaves nothing.
+      // (There, Search's passkey patch holds navigator.credentials.)
+      const ours = (() => { try { return !!(chrome && chrome.runtime && chrome.runtime.id); } catch (e) { return false; } })();
+      if (!ours || root.__searchShim) return;
       // WebKit reverted `requestIdleCallback` after a page-load regression
       // (bug 287681), leaving Proton Pass's form detection without it.
       const nativeIdle = typeof root.requestIdleCallback === "function"
@@ -250,8 +257,6 @@ enum ExtensionShims {
       if (credentials && !Object.prototype.hasOwnProperty.call(root, "__searchCredentials")) {
         Object.defineProperty(root, "__searchCredentials", { value: credentials });
       }
-      const chrome = root.chrome || root.browser;
-      if (!chrome || root.__searchShim) return;
       Object.defineProperty(root, "__searchShim", { value: true });
       // WebKit finds a page's extension APIs through the `chrome` and
       // `browser` globals when it delivers an event. A sandbox that locks

@@ -308,6 +308,16 @@ final class Bench {
             guard let tab = find(request, in: browser) else { answer(missing(request)); return }
             guard let js = request["js"] as? String else { answer(["error": "eval needs js"]); return }
             house(tab)
+            // Search's own world is where its page scripts live (see Web.world).
+            if request["world"] as? String == "search" {
+                tab.web.evaluateJavaScript(js, in: nil, in: Web.world) { result in
+                    switch result {
+                    case .success(let value): answer(["value": Bench.plain(value)])
+                    case .failure(let error): answer(["error": error.localizedDescription])
+                    }
+                }
+                return
+            }
             tab.web.evaluateJavaScript(js) { value, error in
                 MainActor.assumeIsolated {
                     if let error { answer(["error": error.localizedDescription]); return }

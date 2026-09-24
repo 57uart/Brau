@@ -759,13 +759,13 @@ final class Browser: NSObject, ObservableObject {
             guard let self, let id = self.floating,
                   let tab = self.tabs.first(where: { $0.id == id })
             else { return }
-            tab.web.evaluateJavaScript(Isolate.skip(seconds))
+            tab.web.evaluateInSearch(Isolate.skip(seconds))
         }
         floater.onProgress = { [weak self] answer in
             guard let self, let id = self.floating,
                   let tab = self.tabs.first(where: { $0.id == id })
             else { return }
-            tab.web.evaluateJavaScript(Isolate.where_) { found, _ in
+            tab.web.evaluateInSearch(Isolate.where_) { found in
                 MainActor.assumeIsolated {
                     guard let pair = found as? [Any], pair.count == 2,
                           let through = pair[0] as? Double,
@@ -779,7 +779,7 @@ final class Browser: NSObject, ObservableObject {
             guard let self, let id = self.floating,
                   let tab = self.tabs.first(where: { $0.id == id })
             else { return }
-            tab.web.evaluateJavaScript(Isolate.toggle) { playing, _ in
+            tab.web.evaluateInSearch(Isolate.toggle) { playing in
                 MainActor.assumeIsolated { answer((playing as? Bool) ?? true) }
             }
         }
@@ -895,7 +895,7 @@ final class Browser: NSObject, ObservableObject {
                 guard let self else { return }
                 for tab in tabs + parkedTabs {
                     tab.arm(hiding: curtain.css(on: curtain.host(of: tab.address)))
-                    tab.built?.evaluateJavaScript(on ? AutoScroll.script : AutoScroll.off)
+                    tab.built?.evaluateInSearch(on ? AutoScroll.script : AutoScroll.off)
                 }
             }
             .store(in: &bag)
@@ -1488,7 +1488,7 @@ final class Browser: NSObject, ObservableObject {
         // A hero background on a studio's home page is a video too, and it
         // followed people around the desktop. ⌘⇧P still lifts from anywhere.
         if quietly, !Players.knows(tab.address) { return }
-        tab.web.evaluateJavaScript(Isolate.on) { [weak self] answer, _ in
+        tab.web.evaluateInSearch(Isolate.on) { [weak self] answer in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 guard (answer as? String) == "floating" else {
@@ -1511,7 +1511,7 @@ final class Browser: NSObject, ObservableObject {
         guard let id = floating, let tab = tabs.first(where: { $0.id == id }) else { return }
         floating = nil
         tab.floating = false
-        tab.web.evaluateJavaScript(Isolate.off)
+        tab.web.evaluateInSearch(Isolate.off)
     }
 
     func prepare(_ tab: Tab) {

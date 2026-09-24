@@ -12,7 +12,7 @@
     ./bench press CODE CHARS [MODS…]   press a key on the whole app (cmd shift ctrl opt, repeat) — --test runs only
     ./bench tap ID SELECTOR [MODS…]    a real mouse click on an element (or text=Words), shift/cmd/opt held — --test runs only
     ./bench text ID                    the page's text
-    ./bench eval ID JS                 run JavaScript, print what it returns
+    ./bench eval ID JS [search]        run JavaScript, print what it returns; search: in Search's own world
     ./bench click ID SELECTOR
     ./bench type ID SELECTOR TEXT
     ./bench submit ID SELECTOR         the form around SELECTOR
@@ -122,8 +122,9 @@ def main(argv):
         if len(args) != 1: sys.exit(f"usage: bench {verb} ID")
         request["id"] = args[0]
     elif verb == "eval":
-        if len(args) != 2: sys.exit("usage: bench eval ID JS")
-        request["id"], request["js"] = args
+        if len(args) not in (2, 3) or (len(args) == 3 and args[2] != "search"): sys.exit("usage: bench eval ID JS [search]")
+        request["id"], request["js"] = args[0], args[1]
+        if len(args) == 3: request["world"] = "search"
     elif verb in ("click", "submit", "tap"):
         mods = [a for a in args[2:] if a in ("shift", "cmd", "opt")] if verb == "tap" else []
         if len(args) != 2 + len(mods): sys.exit(f"usage: bench {verb} ID SELECTOR" + (" [shift] [cmd] [opt]" if verb == "tap" else ""))
