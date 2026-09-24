@@ -82,7 +82,7 @@ struct SideBar: View {
             // clicks. The lights are the title bar's own and answer first.
             HStack(spacing: 0) {
                 DragStrip()
-                    .frame(width: 10 + Metrics.sideLights)
+                    .frame(width: 10 + browser.sideLightsRoom)
                 Color.clear
                     .frame(width: Metrics.helm)
                     .allowsHitTesting(false)
@@ -96,7 +96,16 @@ struct SideBar: View {
                 // bar, moved beside the lights since there's no far end of a
                 // row to put them at in this mode.
                 HStack(spacing: 0) {
-                    Color.clear.frame(width: Metrics.sideLights)
+                    Color.clear.frame(width: browser.sideLightsRoom)
+                        // In full screen, the window's own lights, always
+                        // there in the column, where a window's sit (see
+                        // FullScreenLights).
+                        .overlay(alignment: .leading) {
+                            if browser.fullScreen {
+                                TrafficLights()
+                                    .padding(.leading, 20)
+                            }
+                        }
                     Helm(browser: browser)
                     Spacer(minLength: 0)
                 }

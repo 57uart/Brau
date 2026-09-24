@@ -98,10 +98,8 @@ enum Metrics {
     /// The same three doors again, in the sidebar, where they sit right of
     /// the lights instead. The column already has 10 of horizontal padding
     /// of its own before this even starts, so this is the lights' own edge
-    /// (79) less that padding, plus a sliver of air — not the full breathing
-    /// room a tab row gets, because the sidebar's minimum width doesn't have
-    /// it to give.
-    static let sideLights: CGFloat = 72
+    /// (79) less that padding, and some air after them before back.
+    static let sideLights: CGFloat = 84
     /// The band left at the top when there is no strip: just enough for the
     /// traffic lights to sit in, and nothing else.
     static let bare: CGFloat = 34
@@ -123,7 +121,7 @@ enum Metrics {
     static let fieldWidth: CGFloat = 560
     /// The column of titles down the left, in the way that has one.
     static let side: CGFloat = 232
-    static let sideMin: CGFloat = 176
+    static let sideMin: CGFloat = 188
     static let sideMax: CGFloat = 440
 }
 

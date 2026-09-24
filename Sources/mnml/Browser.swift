@@ -789,6 +789,16 @@ final class Browser: NSObject, ObservableObject {
     /// How far the space's name in the bar has followed two fingers
     /// sideways, the next or last name coming in beside it (see SpaceName).
     @Published var nameSwipe: CGFloat = 0
+    /// In full screen, and whether the pointer is at the menu bar there —
+    /// when macOS would have slid its title bar down (see FullScreenLights).
+    @Published var fullScreen = false
+    @Published var lightsOut = false
+    /// The room kept for the traffic lights before the tabs: all of it in a
+    /// window; in full screen only while the lights are out, the tabs
+    /// starting at the edge the rest of the time. The column keeps its
+    /// corner always, lights and all.
+    var lightsRoom: CGFloat { fullScreen ? (lightsOut ? 88 : 12) : Metrics.lights }
+    var sideLightsRoom: CGFloat { Metrics.sideLights }
     /// The bar's tabs, following the name sideways and fading as they go,
     /// then coming in from the other side as the next space's (see
     /// SpaceSwipe.turnName).

@@ -50,11 +50,22 @@ struct TabBar: View {
             ZStack(alignment: .leading) {
                 // The empty half of the strip is what you grab to move the
                 // window; the tabs keep the run they sit on.
-                DragStrip(reserved: Metrics.lights + dot + (making ? min(540, room(in: geo.size.width)) : run(in: geo.size.width)) + Metrics.tabGap + Metrics.plusWidth, trailing: Metrics.helm + 26 + 24)
+                DragStrip(reserved: browser.lightsRoom + dot + (making ? min(540, room(in: geo.size.width)) : run(in: geo.size.width)) + Metrics.tabGap + Metrics.plusWidth, trailing: Metrics.helm + 26 + 24)
                 // And the corner the lights sit in, which is title bar too —
                 // the one stretch left to take hold of when tabs fill the row.
                 DragStrip()
-                    .frame(width: Metrics.lights)
+                    .frame(width: browser.lightsRoom)
+
+                // In full screen the lights are the window's own, sliding in
+                // while the pointer is at the menu bar (see FullScreenLights).
+                if browser.fullScreen {
+                    TrafficLights()
+                        .padding(.leading, 20)
+                        .opacity(browser.lightsOut ? 1 : 0)
+                        .offset(x: browser.lightsOut ? 0 : -16)
+                        .allowsHitTesting(browser.lightsOut)
+                }
+
 
                 HStack(spacing: Metrics.tabGap) {
 
@@ -147,7 +158,7 @@ struct TabBar: View {
                 // The traffic lights are the system's. The row starts after
                 // them and stays there — nothing here moves to get out of
                 // their way, because nothing here was ever in it.
-                .padding(.leading, Metrics.lights)
+                .padding(.leading, browser.lightsRoom)
                 .padding(.trailing, 12)
                 .coordinateSpace(name: "strip")
             }
@@ -279,7 +290,7 @@ struct TabBar: View {
             tab: tab,
             live: tab.id == browser.activeID,
             width: width,
-            room: strip - Metrics.lights - 12,
+            room: strip - browser.lightsRoom - 12,
             pill: pill,
             close: { browser.close(tab) }
         )
@@ -520,7 +531,7 @@ struct TabBar: View {
                         tab: tab,
                         live: tab.id == row.active,
                         width: each,
-                        room: strip - Metrics.lights - 12,
+                        room: strip - browser.lightsRoom - 12,
                         pill: pill,
                         close: {}
                     )
@@ -586,7 +597,7 @@ struct TabBar: View {
         let each = width(in: strip)
         var total = fixed + CGFloat(looseShown) * each
         if let id = browser.editingTab, let tab = browser.tabs.first(where: { $0.id == id }) {
-            total += min(340, strip - Metrics.lights - 12) - (tab.pin != nil ? Metrics.pinWidth : each)
+            total += min(340, strip - browser.lightsRoom - 12) - (tab.pin != nil ? Metrics.pinWidth : each)
         }
         return total
     }
@@ -596,7 +607,7 @@ struct TabBar: View {
     /// the three of the helm and the bookmarks stand in for them.
     private func room(in strip: CGFloat) -> CGFloat {
         let far = doors > 0 ? doors : Metrics.helm + 26
-        return max(0, strip - Metrics.lights - dot - 12 - Metrics.plusWidth - far - 3 * Metrics.tabGap)
+        return max(0, strip - browser.lightsRoom - dot - 12 - Metrics.plusWidth - far - 3 * Metrics.tabGap)
     }
 
     /// The space's name is in the pinned box now (see SpaceName), not a dot

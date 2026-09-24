@@ -728,6 +728,7 @@ struct ContentView: View {
         // the real window came back at.
         window.setFrameAutosaveName(Store.world.map { "search (\($0))" } ?? "search")
         FullScreenEsc.keep(window)
+        FullScreenLights.keep(window, browser: browser)
 
         // The traffic lights set in from the corner and centred in the strip's
         // height, in both modes, without a toolbar's rounder corners — see

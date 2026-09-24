@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 // The traffic lights, where a Mac app with a toolbar has them — set in from the
 // corner and centred in the strip's height — without the toolbar.
@@ -97,5 +98,126 @@ final class Lights: NSObject {
             if button.frame.origin != origin { button.setFrameOrigin(origin) }
         }
         moved()
+    }
+}
+
+/// Full screen, as Safari has it. macOS keeps a window's title bar in a
+/// strip of its own at the top of the screen then, sliding it down when the
+/// pointer reaches the menu bar — a grey bar with the traffic lights on it,
+/// over the tabs. Here that strip is never seen: its contents are hidden and
+/// it lets clicks through, and it is only watched, so that as it comes the
+/// window's own lights (TrafficLights) slide into the tabs' row, which makes
+/// room for them (Browser.lightsOut).
+@MainActor
+final class FullScreenLights: NSObject {
+    private static var kept: [ObjectIdentifier: FullScreenLights] = [:]
+
+    static func keep(_ window: NSWindow, browser: Browser) {
+        let key = ObjectIdentifier(window)
+        guard kept[key] == nil else { return }
+        kept[key] = FullScreenLights(window, browser: browser)
+    }
+
+    private weak var window: NSWindow?
+    private weak var browser: Browser?
+    private weak var container: NSView?
+    /// macOS's title bar in full screen, found as full screen begins.
+    private weak var bar: NSView?
+
+    private init(_ window: NSWindow, browser: Browser) {
+        self.window = window
+        self.browser = browser
+        super.init()
+        let centre = NotificationCenter.default
+        centre.addObserver(self, selector: #selector(entered), name: NSWindow.didEnterFullScreenNotification, object: window)
+        centre.addObserver(self, selector: #selector(leaving), name: NSWindow.willExitFullScreenNotification, object: window)
+    }
+
+    @objc private func entered() {
+        bar = window?.standardWindowButton(.closeButton)?.superview
+        guard let bar, let holder = bar.superview else { return }
+        browser?.fullScreen = true
+        hide(true)
+        container = holder
+        holder.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(moved), name: NSView.frameDidChangeNotification, object: holder)
+        moved()
+    }
+
+    @objc private func leaving() {
+        if let container {
+            NotificationCenter.default.removeObserver(self, name: NSView.frameDidChangeNotification, object: container)
+        }
+        hide(false)
+        container = nil
+        withAnimation(Motion.settle) {
+            browser?.lightsOut = false
+            browser?.fullScreen = false
+        }
+    }
+
+    /// Everything in the strip, not just the bar — beside it is the
+    /// decoration that draws an edge and a shadow over the tabs — and the
+    /// strip itself: unseen, shadowless, and clicks going through it. Hidden,
+    /// it is still laid out and still moves, which is all that is read.
+    private func hide(_ off: Bool) {
+        guard let strip = bar?.window, strip !== window else { return }
+        bar?.isHidden = off
+        strip.contentView?.isHidden = off
+        strip.alphaValue = off ? 0 : 1
+        strip.ignoresMouseEvents = off
+        strip.hasShadow = !off
+        strip.invalidateShadow()
+    }
+
+    /// The hidden strip moves down with the menu bar and back up: the lights
+    /// are out while any of it would show. macOS gives the strip its shadow
+    /// back as it slides it down; that goes again, every time.
+    @objc private func moved() {
+        guard let container else { return }
+        hide(true)
+        let out = container.frame.maxY > 4
+        guard out != browser?.lightsOut else { return }
+        withAnimation(Motion.settle) { browser?.lightsOut = out }
+    }
+}
+
+/// The window's own traffic lights in full screen, where macOS's would have
+/// come down in a bar of their own: in the column's corner, always, and in
+/// the tabs' row while the pointer is at the menu bar. macOS's own flat
+/// colours, all three marks under the pointer at once. Close, minimise
+/// (which full screen can't do, so it does nothing) and leave full screen.
+struct TrafficLights: View {
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            light(Color(red: 236 / 255, green: 106 / 255, blue: 94 / 255), mark: "xmark") {
+                Links.window?.performClose(nil)
+            }
+            light(Color(red: 244 / 255, green: 191 / 255, blue: 79 / 255), mark: "minus") {}
+            light(Color(red: 97 / 255, green: 197 / 255, blue: 84 / 255), mark: "arrow.down.right.and.arrow.up.left") {
+                Links.window?.toggleFullScreen(nil)
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+    }
+
+    private func light(_ colour: Color, mark: String, act: @escaping () -> Void) -> some View {
+        Button(action: act) {
+            Circle()
+                .fill(colour)
+                .overlay {
+                    if hovering {
+                        Image(systemName: mark)
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundStyle(.black.opacity(0.5))
+                    }
+                }
+                .frame(width: 12, height: 12)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
     }
 }
