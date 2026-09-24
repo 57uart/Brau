@@ -16,6 +16,7 @@ in [ROADMAP.md](ROADMAP.md).
 - Updates can wait for you: Settings › About › Install updates on its own, on as before. Switched off, Search still looks once a day and says when a newer version is out, and fetches, checks and installs it only when you press Install.
 ### Fixed
 
+- An account picked from the list under a sign-in field is filled only into the page it was offered for.
 - History opens at once with a long past: with two thousand pages the panel took a third of a second to come up, and a second the first time, while it made every line at once and looked on disk for each site's icon. Now it makes only the lines in view, works out its days once, and remembers which sites have no icon. Escape already closes it (#70). ([#67](https://github.com/driceroland/Search/issues/67))
 - A link clicked in Mail or any other app brings Search to the front, with the page, instead of opening it behind. ([#95](https://github.com/driceroland/Search/issues/95))
 - The Web Inspector stays beside the page when the window changes size. Search took it out at the first resize and left the page shrunk next to an empty space. ([#91](https://github.com/driceroland/Search/issues/91))
