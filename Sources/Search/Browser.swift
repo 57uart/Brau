@@ -1308,7 +1308,7 @@ final class Browser: NSObject, ObservableObject {
     /// An address from before extensions moved to chrome-extension://, as
     /// it is now; any other, as it is.
     static func page(_ url: URL) -> URL {
-        if #available(macOS 15.4, *) { return Extensions.current(url) }
+        if #available(macOS 15.4, *) { return Extensions.unpopped(Extensions.current(url)) }
         return url
     }
 
