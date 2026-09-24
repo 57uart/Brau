@@ -61,9 +61,6 @@ struct GroupBlock<Row: View>: View {
     let members: [Tab]
     /// A tab's row, as the column draws it.
     let row: (Tab) -> Row
-    /// The name picked up and moved: the whole group goes with it.
-    let drag: (DragGesture.Value) -> Void
-    let drop: () -> Void
     /// Off for the copy drawn under the hand while the group is dragged:
     /// only the group in the list says where it is.
     var reports = true
@@ -142,15 +139,10 @@ struct GroupBlock<Row: View>: View {
             hovering = over
             peekList(over)
         }
+        // Dragged by the column's list as a whole (see SideBar), which
+        // stays put while rows move between groups; a drag held by the row
+        // itself was lost when the row moved, and never let go.
         .modifier(Reporting(key: .header(group.id), on: reports))
-        .gesture(
-            DragGesture(minimumDistance: 5, coordinateSpace: .named("column"))
-                .onChanged { value in
-                    listing = false
-                    drag(value)
-                }
-                .onEnded { _ in drop() }
-        )
         .contextMenu { GroupMenu(browser: browser, group: group) }
         .popover(isPresented: $listing, arrowEdge: .trailing) {
             GroupList(browser: browser, group: group, members: members) { inside in

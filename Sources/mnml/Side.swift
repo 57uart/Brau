@@ -366,6 +366,16 @@ struct SideBar: View {
         }
         .coordinateSpace(name: "column")
         .onPreferenceChange(RowFrames.self) { frames = $0; Bench.rowFrames = $0 }
+        // One drag for the whole list, which never goes away while its rows
+        // move from a group to the list and back (see GroupBlock).
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 5, coordinateSpace: .named("column"))
+                .onChanged { value in
+                    guard let what = held ?? pick(at: value.startLocation) else { return }
+                    drag(what, value)
+                }
+                .onEnded { _ in finishDrag() }
+        )
         .background {
             // Where the list sits in the window, for the bench's drags.
             GeometryReader { box in
@@ -390,8 +400,7 @@ struct SideBar: View {
         case .group(let group, let members):
             // Held, the group keeps its place in the list, unseen, while a
             // copy of it follows the hand (see `ghost`).
-            GroupBlock(browser: browser, group: group, members: members, row: { tabRow($0) },
-                       drag: { value in drag(.group(group.id), value) }, drop: finishDrag)
+            GroupBlock(browser: browser, group: group, members: members, row: { tabRow($0) })
                 .opacity(held == .group(group.id) ? 0 : 1)
         }
     }
@@ -421,14 +430,23 @@ struct SideBar: View {
         // follows the hand (see `ghost`). Drawing the row itself shifted
         // measured the shift too, and chasing it never ended.
         .opacity(lifted ? 0 : 1)
-        .gesture(
-            DragGesture(minimumDistance: 5, coordinateSpace: .named("column"))
-                .onChanged { value in
-                    let ids = browser.chosen.contains(tab.id) ? browser.chosenTabs.map(\.id) : [tab.id]
-                    drag(.tabs(ids, lead: tab.id), value)
-                }
-                .onEnded { _ in finishDrag() }
-        )
+    }
+
+    /// What a drag starting here picks up: the tab under it — with the other
+    /// picked tabs, if it is one of them — or a group, by its name.
+    private func pick(at point: CGPoint) -> Held? {
+        for (key, frame) in frames where frame.contains(point) {
+            switch key {
+            case .tab(let id):
+                let ids = browser.chosen.contains(id) ? browser.chosenTabs.map(\.id) : [id]
+                return .tabs(ids, lead: id)
+            case .header(let id):
+                return .group(id)
+            case .line:
+                continue
+            }
+        }
+        return nil
     }
 
     // MARK: - dragging in the list
@@ -480,7 +498,7 @@ struct SideBar: View {
             if let group = browser.group(id) {
                 GroupBlock(browser: browser, group: group, members: browser.members(of: id), row: { tab in
                     SideRow(browser: browser, prefs: prefs, tab: tab, live: false, pill: pill, close: {})
-                }, drag: { _ in }, drop: {}, reports: false)
+                }, reports: false)
                 .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
                 .offset(y: pointer - grab)
