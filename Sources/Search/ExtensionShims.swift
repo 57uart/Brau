@@ -2281,6 +2281,7 @@ enum ExtensionShims {
         "browsingData": "browsingData",
         "readingList": "readingList",
         "userScripts": "userScripts",
+        "identity": "identity",
     ]
 
     /// What this extension asked for: the names in its manifest and any
@@ -2298,7 +2299,17 @@ enum ExtensionShims {
         let first = args.first
         let id = context.uniqueIdentifier
 
-        if api.hasPrefix("setting.") { return setting(api, first as? [String: Any] ?? [:], extension: id, owner: owner) }
+        if api.hasPrefix("setting.") {
+            // A browser setting (chrome.privacy…) belongs to the family its
+            // name starts with, and only an extension that asked for that
+            // family may read or change it, as in Chrome.
+            let name = api.split(separator: ":", maxSplits: 1).dropFirst().first.map(String.init) ?? ""
+            let family = String(name.prefix(while: { $0 != "." }))
+            guard !family.isEmpty, allowed(id, context: context).contains(family) else {
+                throw Unsupported(what: "The extension never asked for \u{201C}\(family)\u{201D}")
+            }
+            return setting(api, first as? [String: Any] ?? [:], extension: id, owner: owner)
+        }
 
         // What leaves this app is answered here, not in the injected script:
         // the shim runs beside the extension's own code, so its checks stop
@@ -3075,7 +3086,7 @@ enum ExtensionAuth {
     /// tab the flow was started in may finish it, or a window that tab's
     /// page opened, since some providers finish the sign-in in a popup.
     static func intercept(_ url: URL, browser: Browser, from webView: WKWebView) -> Bool {
-        guard let host = url.host()?.lowercased(), host.hasSuffix(".chromiumapp.org") else { return false }
+        guard url.scheme?.lowercased() == "https", let host = url.host()?.lowercased(), host.hasSuffix(".chromiumapp.org") else { return false }
         let id = String(host.dropLast(".chromiumapp.org".count))
         guard let entry = waiting[id], let from = browser.tab(for: webView),
               from.id == entry.tab || from.opener == entry.tab
