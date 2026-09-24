@@ -35,8 +35,15 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
   security report sent privately never comes here, not even in outline: it
   is fixed, it ships, and only then is it credited in CHANGELOG.md.
 
+## Being built now
+
+- [ ] **Media pauses when switching spaces** Music or a video playing in one space stops when you switch to another. *([#74](https://github.com/driceroland/Search/issues/74))*
+- [ ] **Web Inspector blanks the page** With the Web Inspector open, resizing the window turns the page blank. *([#91](https://github.com/driceroland/Search/issues/91))*
+
 ## Done, in the next version
 
+- [x] **History keeps each video apart** History keeps different articles and videos from the same site apart. *([#154](https://github.com/driceroland/Search/pull/154))*
+- [x] **⌘W stops bouncing between pins** A pin already put down stays down. *([#125](https://github.com/driceroland/Search/pull/125))*
 - [x] **Local certificates, trusted only here** A certificate is taken on trust only for this Mac itself. On main already; the pull request closes, with thanks, when it ships. *([#165](https://github.com/driceroland/Search/pull/165), [#133](https://github.com/driceroland/Search/issues/133))*
 - [x] **User scripts stay in their package** A user script's file is read from the extension's own package. On main already; the pull request closes, with thanks, when it ships. *([#198](https://github.com/driceroland/Search/pull/198))*
 - [x] **Copying a password asks first** Copy in Passwords asks who you are first, as Show does. On main already; the pull request closes, with thanks, when it ships. *([#203](https://github.com/driceroland/Search/pull/203))*
@@ -57,10 +64,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Passkeys under the sign-in field** A site's passkey button brings up the Mac's passkey sheet now; next is the suggestion Safari shows as you click into a sign-in field. *([#17](https://github.com/driceroland/Search/issues/17), X)*
 - [ ] **iCloud Passwords** Pairing asks for the code twice ([#217](https://github.com/driceroland/Search/pull/217) fixes the first code); one person says it doesn't work at all, details asked. *([#17](https://github.com/driceroland/Search/issues/17), email ×2, [#217](https://github.com/driceroland/Search/pull/217))*
 - [ ] **Window stutters between screens** Dragging the window from one screen to another stutters. Needs a trace recorded on two screens. *(X)*
-- [ ] **Search doesn't come to the front** When another app, like Mail, opens a link in Search, its window stays behind. *([#95](https://github.com/driceroland/Search/issues/95))*
-- [ ] **Media pauses when switching spaces** Music or a video playing in one space stops when you switch to another. *([#74](https://github.com/driceroland/Search/issues/74))*
 - [ ] **History is slow** History is slow to open, stutters as it scrolls, and Escape doesn't close it. *([#67](https://github.com/driceroland/Search/issues/67))*
-- [ ] **Web Inspector blanks the page** With the Web Inspector open, resizing the window turns the page blank. *([#91](https://github.com/driceroland/Search/issues/91))*
 - [ ] **Web processes start before the window** The web process pool is made before the first window; check whether 1.0.2's launch order already covers it. *([#157](https://github.com/driceroland/Search/issues/157))*
 - [ ] **⌘F lands on the back button** On some pages ⌘F focuses the back button instead of the find field. *([#172](https://github.com/driceroland/Search/issues/172))*
 - [ ] **Mouse wheel stuck on some pages** A mouse wheel doesn't scroll a page that listens to the wheel itself. A fix is waiting in [#194](https://github.com/driceroland/Search/pull/194). *([#180](https://github.com/driceroland/Search/issues/180), [#194](https://github.com/driceroland/Search/pull/194))*
@@ -100,8 +104,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Address bar commands** A word like "settings" reaches the app itself. *([#212](https://github.com/driceroland/Search/pull/212))*
 - [ ] **Hold a swipe to pick from history** Hold a back or forward swipe to pick a page from history. *([#191](https://github.com/driceroland/Search/pull/191))*
 - [ ] **Tabs load when shown** Tabs opened together don't all load at once: they wait until they're shown. *([#195](https://github.com/driceroland/Search/issues/195), [#196](https://github.com/driceroland/Search/pull/196))*
-- [ ] **History keeps each video apart** History keeps different articles and videos from the same site apart. *([#154](https://github.com/driceroland/Search/pull/154))*
-- [ ] **⌘W stops bouncing between pins** A pin already put down stays down. *([#125](https://github.com/driceroland/Search/pull/125))*
 - [ ] **Links from other apps skip the pins** A link opened from another app never lands among the pins. *([#219](https://github.com/driceroland/Search/issues/219))*
 - [ ] **Don't reopen tabs at launch** A switch to start with a fresh window instead of last time's tabs. *(email)*
 - [ ] **Pins as a list** Pins as a list, in rows instead of small squares. Also: site icons on pins without them in the tab list (one setting does both today), and Arc-style pinned rows above New Tab. *([#183](https://github.com/driceroland/Search/issues/183), email ×2)*
@@ -120,6 +122,10 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Faster animations** Spaces especially, compared with Zen. *(email)*
 - [ ] **Block YouTube's ads** YouTube's ads. They come from youtube.com itself, which the blocker's lists can't tell apart. Whether to go that far is an open question. *([#218](https://github.com/driceroland/Search/issues/218), email)*
 - [ ] **Extensions per space** Each space with the extensions it wants, on and off apart from the others. WebKit has one extension controller for the whole app, so this means one per space. Drice's call, 24 Sep: later. *(X)*
+
+## Pull requests to review
+
+- [ ] **Search doesn't come to the front** When another app, like Mail, opens a link in Search, its window stays behind. *([#95](https://github.com/driceroland/Search/issues/95))*
 
 ## Drice's call
 
