@@ -15,8 +15,11 @@ struct SideBar: View {
     /// What is being dragged in the list — tabs, or a whole group — how
     /// far, and where it would land (see GroupDrop).
     @State private var held: Held?
-    @State private var heldY: CGFloat = 0
-    @State private var gap: Int?
+    /// Where the pointer is, and how far below the held row's top it took hold.
+    @State private var pointer: CGFloat = 0
+    @State private var grab: CGFloat = 0
+    /// What the list was last rearranged to, so each move is made once.
+    @State private var placed: String?
     /// A tab held over the middle of another long enough to make a group of the two.
     @State private var merging: Tab.ID?
     @State private var mergeCandidate: Tab.ID?
@@ -362,7 +365,6 @@ struct SideBar: View {
         }
         .coordinateSpace(name: "column")
         .onPreferenceChange(RowFrames.self) { frames = $0 }
-        .overlay(alignment: .topLeading) { insertion }
         .animation(Motion.settle, value: browser.groups)
     }
 
@@ -374,7 +376,8 @@ struct SideBar: View {
         case .group(let group, let members):
             GroupBlock(browser: browser, group: group, members: members, row: { tabRow($0) },
                        drag: { value in drag(.group(group.id), value) }, drop: finishDrag)
-                .offset(y: held == .group(group.id) ? heldY : 0)
+                .offset(y: held == .group(group.id) ? lift : 0)
+                .transaction { if held == .group(group.id) { $0.animation = nil } }
                 .zIndex(held == .group(group.id) ? 1 : 0)
                 .shadow(color: .black.opacity(held == .group(group.id) ? 0.14 : 0), radius: 12, y: 4)
         }
@@ -400,7 +403,7 @@ struct SideBar: View {
                 .strokeBorder(Palette.ink.opacity(merging == tab.id ? 0.45 : 0), lineWidth: 1.5)
         )
         .report(.tab(tab.id))
-        .offset(y: lifted ? heldY : 0)
+        .offset(y: lifted ? lift : 0)
         // Under the hand exactly; only the others glide.
         .transaction { if lifted { $0.animation = nil } }
         .zIndex(lifted ? 1 : 0)
@@ -440,15 +443,35 @@ struct SideBar: View {
         return out
     }
 
+    /// The held row's key: its own, or its group's name.
+    private func key(of held: Held) -> RowKey {
+        switch held {
+        case .tabs(_, let lead): return .tab(lead)
+        case .group(let id): return .header(id)
+        }
+    }
+
+    /// How far the held rows are drawn from where the list has put them,
+    /// so they stay under the hand as the list rearranges around them.
+    private var lift: CGFloat {
+        guard let held, let frame = frames[key(of: held)] else { return 0 }
+        return pointer - grab - frame.minY
+    }
+
+    /// Picked up and moved: the list rearranges around it as it goes,
+    /// tabs into and out of groups on the way. Held over the middle of a
+    /// tab on its own, it waits instead — a moment there makes a group of
+    /// the two.
     private func drag(_ what: Held, _ value: DragGesture.Value) {
-        if held == nil { held = what }
+        if held == nil {
+            held = what
+            grab = value.startLocation.y - (frames[key(of: what)]?.minY ?? value.startLocation.y)
+        }
         guard let held else { return }
-        heldY = value.translation.height
+        pointer = value.location.y
         let y = value.location.y
         let rows = dropRows(without: held)
-        gap = rows.filter { (frames[$0.key]?.midY ?? .infinity) < y }.count
 
-        // Held over the middle of a tab on its own, a moment: a group of the two.
         var over: Tab.ID?
         if case .tabs = held {
             for (row, key) in rows {
@@ -456,60 +479,48 @@ struct SideBar: View {
                 if y > frame.minY + frame.height * 0.28, y < frame.maxY - frame.height * 0.28 { over = id }
             }
         }
-        guard over != mergeCandidate else { return }
-        mergeCandidate = over
-        merging = nil
-        if let over {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if mergeCandidate == over, self.held != nil { withAnimation(Motion.quick) { merging = over } }
+        if over != mergeCandidate {
+            mergeCandidate = over
+            merging = nil
+            if let over {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if mergeCandidate == over, self.held != nil { withAnimation(Motion.quick) { merging = over } }
+                }
             }
         }
-    }
+        guard over == nil else { return }
 
-    private func finishDrag() {
-        defer {
-            withAnimation(Motion.settle) {
-                held = nil
-                heldY = 0
-                gap = nil
-                merging = nil
-                mergeCandidate = nil
-            }
-        }
-        guard let held, let gap else { return }
-        let rows = dropRows(without: held).map(\.row)
+        let gap = rows.filter { (frames[$0.key]?.midY ?? .infinity) < y }.count
+        let row = rows.map(\.row)
         withAnimation(Motion.settle) {
             switch held {
             case .tabs(let ids, _):
-                let moving = browser.tabs.filter { ids.contains($0.id) }
-                if let merging, let target = browser.tabs.first(where: { $0.id == merging }) {
-                    browser.makeGroup(of: [target] + moving)
-                } else {
-                    browser.place(moving, GroupDrop.tab(at: gap, in: rows))
-                }
+                let place = GroupDrop.tab(at: gap, in: row)
+                let mark = String(describing: place)
+                guard mark != placed else { return }
+                placed = mark
+                browser.place(browser.tabs.filter { ids.contains($0.id) }, place)
             case .group(let id):
-                let landing = GroupDrop.group(at: gap, in: rows)
+                let landing = GroupDrop.group(at: gap, in: row)
+                let mark = String(describing: landing)
+                guard mark != placed else { return }
+                placed = mark
                 browser.placeGroup(id, pinned: landing.pinned, before: landing.before)
             }
         }
     }
 
-    /// A line where the held row would land, unless it is about to make a group.
-    @ViewBuilder
-    private var insertion: some View {
-        if let held, let gap, merging == nil {
-            let rows = dropRows(without: held)
-            let y: CGFloat? = gap < rows.count
-                ? frames[rows[gap].key].map { $0.minY - 1 }
-                : rows.last.flatMap { frames[$0.key] }.map { $0.maxY + 1 }
-            if let y {
-                Capsule()
-                    .fill(Palette.ink.opacity(0.45))
-                    .frame(height: 2)
-                    .padding(.horizontal, 4)
-                    .offset(y: y - 1)
-                    .allowsHitTesting(false)
+    private func finishDrag() {
+        if case .tabs(let ids, _)? = held, let merging, let target = browser.tabs.first(where: { $0.id == merging }) {
+            withAnimation(Motion.settle) {
+                browser.makeGroup(of: [target] + browser.tabs.filter { ids.contains($0.id) })
             }
+        }
+        withAnimation(Motion.settle) {
+            held = nil
+            placed = nil
+            merging = nil
+            mergeCandidate = nil
         }
     }
 

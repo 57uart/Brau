@@ -10,7 +10,7 @@
     ./bench resize W H [STEPS]         take the window to W×H in steps, like a drag — --test runs only
     ./bench key ID TEXT                press keys on a tab as real key events — --test runs only
     ./bench press CODE CHARS [MODS…]   press a key on the whole app (cmd shift ctrl opt) — --test runs only
-    ./bench tap ID SELECTOR            a real mouse click on an element (or text=Words) — --test runs only
+    ./bench tap ID SELECTOR [MODS…]    a real mouse click on an element (or text=Words), cmd shift opt ctrl held — --test runs only
     ./bench group [make TAB…|add G TAB…|fold G|open G|pin G|unpin G|separate G|close G|name G NAME|colour G N]
                                        tab groups, and the row, after — --test runs only
     ./bench window PATH                the whole window as drawn now, to a PNG — --test runs only
@@ -110,7 +110,10 @@ def main(argv):
     elif verb == "eval":
         if len(args) != 2: sys.exit("usage: bench eval ID JS")
         request["id"], request["js"] = args
-    elif verb in ("click", "submit", "tap"):
+    elif verb == "tap":
+        if len(args) < 2: sys.exit("usage: bench tap ID SELECTOR [cmd] [shift] [opt] [ctrl]")
+        request["id"], request["selector"], request["mods"] = args[0], args[1], args[2:]
+    elif verb in ("click", "submit"):
         if len(args) != 2: sys.exit(f"usage: bench {verb} ID SELECTOR")
         request["id"], request["selector"] = args
     elif verb == "type":

@@ -336,9 +336,20 @@ final class Bench {
                     }
                     let local = NSPoint(x: point[0], y: view.isFlipped ? point[1] : view.bounds.height - point[1])
                     let spot = view.convert(local, to: nil)
+                    // Keys held with the click: cmd shift opt ctrl.
+                    var held: NSEvent.ModifierFlags = []
+                    for mod in request["mods"] as? [String] ?? [] {
+                        switch mod {
+                        case "cmd": held.insert(.command)
+                        case "shift": held.insert(.shift)
+                        case "opt": held.insert(.option)
+                        case "ctrl": held.insert(.control)
+                        default: break
+                        }
+                    }
                     for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
                         guard let event = NSEvent.mouseEvent(
-                            with: type, location: spot, modifierFlags: [],
+                            with: type, location: spot, modifierFlags: held,
                             timestamp: ProcessInfo.processInfo.systemUptime,
                             windowNumber: window.windowNumber, context: nil,
                             eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0

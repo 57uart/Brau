@@ -56,6 +56,11 @@ final class Preferences: ObservableObject {
         didSet { store.set(sleepsTabs, forKey: "tabs.sleep") }
     }
     /// Control-Tab's recently used switcher. On unless turned off.
+    /// ⌘-click on a link makes a tab group of the page and the link. Off
+    /// unless turned on.
+    @Published var groupsLinks: Bool {
+        didSet { store.set(groupsLinks, forKey: "tabs.groupLinks") }
+    }
     @Published var mruSwitcher: Bool {
         didSet { store.set(mruSwitcher, forKey: "tabs.mru") }
     }
@@ -143,6 +148,7 @@ final class Preferences: ObservableObject {
         glyph = store.string(forKey: "glyph").flatMap(Glyph.init) ?? .letters
         sleepsTabs = store.object(forKey: "tabs.sleep") as? Bool ?? true
         mruSwitcher = store.object(forKey: "tabs.mru") as? Bool ?? true
+        groupsLinks = store.bool(forKey: "tabs.groupLinks")
         shielded = store.object(forKey: "shield") as? Bool ?? true
         // Offered by default only in a build that can actually do them —
         // one with Apple's browser entitlement and its profile embedded. A

@@ -1774,7 +1774,16 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
            ["http", "https"].contains(scheme) {
             let flags = action.modifierFlags
             if flags.contains(.command) || action.buttonNumber == 2 {
-                open(url, foreground: flags.contains(.shift))
+                let opened = open(url, foreground: flags.contains(.shift))
+                // With Settings › Tabs › Group links you ⌘-click: the page
+                // and the link, as a group named for the page's site. A page
+                // already in a group has the link join it (see open).
+                if prefs.groupsLinks, let source = tab(for: webView), source.pin == nil, source.group == nil,
+                   let group = makeGroup(of: [source, opened]) {
+                    renamingGroup = nil
+                    let site = source.address?.host()?.replacingOccurrences(of: "www.", with: "")
+                    rename(group, to: site ?? source.label)
+                }
                 decisionHandler(.cancel)
                 return
             }

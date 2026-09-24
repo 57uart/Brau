@@ -222,6 +222,10 @@ struct SettingsPanel: View {
                     }
             }
             Rule()
+            Line("Group links you ⌘-click", "A link opened with ⌘-click goes in the background, in a new group with the page it came from — or into that page's group, if it has one. Groups show with tabs in a sidebar.") {
+                Switch(on: $prefs.groupsLinks)
+            }
+            Rule()
             Line("Sleep tabs you aren't using", "After half an hour away they come back where you left them. Pinned tabs, sound, calls and anything typed stay awake.") {
                 Switch(on: $prefs.sleepsTabs)
             }
