@@ -6,6 +6,9 @@
 #   ./build.sh                 debug-free release build, ad-hoc signed: runs here
 #   ./build.sh release install + quits mnml, puts it in /Applications and opens
 #                                it again — 1Password trusts browsers only there
+#   ./build.sh release test    the same as "mnml Test" (com.farchan.mnml.test),
+#                                a copy with its own tabs, settings, sign-ins
+#                                and extensions, beside the one in daily use
 #   ./build.sh release dmg     + build/mnml.dmg, build/mnml.zip and
 #                                build/appcast.json, signed with Developer ID
 #                                if there is one in the keychain
@@ -40,6 +43,13 @@ CONFIG="${1:-release}"
 STEP="${2:-app}"
 APP="build/mnml.app"
 NAME="mnml"
+DISPLAY_NAME="mnml"
+BUNDLE_ID="com.farchan.mnml"
+if [ "$STEP" = "test" ]; then
+  APP="build/mnml Test.app"
+  DISPLAY_NAME="mnml Test"
+  BUNDLE_ID="com.farchan.mnml.test"
+fi
 VERSION="$(tr -d '[:space:]' < VERSION)"
 # A build number that only ever goes up, so the updater can tell newer from
 # older without parsing version strings.
@@ -80,10 +90,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>$NAME</string>
-  <key>CFBundleDisplayName</key><string>$NAME</string>
+  <key>CFBundleName</key><string>$DISPLAY_NAME</string>
+  <key>CFBundleDisplayName</key><string>$DISPLAY_NAME</string>
   <key>CFBundleExecutable</key><string>$NAME</string>
-  <key>CFBundleIdentifier</key><string>com.farchan.mnml</string>
+  <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD</string>
@@ -169,6 +179,23 @@ fi
 
 echo "built: $APP ($VERSION, build $BUILD)"
 [ "$STEP" = "app" ] && exit 0
+
+if [ "$STEP" = "test" ]; then
+  osascript -e 'quit app id "com.farchan.mnml.test"' 2>/dev/null || true
+  for _ in $(seq 1 50); do
+    pgrep -f "/Applications/mnml Test.app/Contents/MacOS/$NAME" >/dev/null || break
+    sleep 0.2
+  done
+  if pgrep -f "/Applications/mnml Test.app/Contents/MacOS/$NAME" >/dev/null; then
+    echo "mnml Test didn't quit — close any dialog in it (or quit it), then run this again" >&2
+    exit 1
+  fi
+  rm -rf "/Applications/mnml Test.app"
+  ditto "$APP" "/Applications/mnml Test.app"
+  open "/Applications/mnml Test.app"
+  echo "installed: /Applications/mnml Test.app"
+  exit 0
+fi
 
 if [ "$STEP" = "install" ]; then
   # Quit the way ⌘Q does, so the session is saved and comes back.

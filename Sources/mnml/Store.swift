@@ -16,6 +16,9 @@ enum Store {
     /// remember a flag is not a safeguard.
     static var testing: Bool {
         if ProcessInfo.processInfo.environment["MNML_PROBE"] != nil { return true }
+        // "mnml Test", the copy ./build.sh release test installs beside the
+        // real one: a test run however it is opened, Finder included.
+        if testCopy { return true }
         return Bundle.main.executablePath?.contains("/.build/") == true
     }
 
@@ -29,8 +32,11 @@ enum Store {
         guard testing else { return nil }
         let asked = (ProcessInfo.processInfo.environment["MNML_PROBE"] ?? "").lowercased()
             .filter { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "-" }
+        if asked.isEmpty, testCopy { return "copy" }
         return asked.isEmpty || asked == "1" || asked == "test" ? "test" : asked
     }()
+
+    static var testCopy: Bool { Bundle.main.bundleIdentifier == "com.farchan.mnml.test" }
 
     /// A test run there to be weighed and timed rather than driven
     /// (MNML_MEASURE beside MNML_PROBE). It keeps what the shipped
