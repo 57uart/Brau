@@ -44,6 +44,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [x] **Media pauses when switching spaces** Music or a video playing in one space stops when you switch to another. *([#74](https://github.com/driceroland/Search/issues/74))*
 - [x] **History is slow** History is slow to open, stutters as it scrolls, and Escape doesn't close it. *([#67](https://github.com/driceroland/Search/issues/67))*
 - [x] **Web Inspector blanks the page** With the Web Inspector open, resizing the window turns the page blank. *([#91](https://github.com/driceroland/Search/issues/91))*
+- [x] **Mouse wheel stuck on some pages** A mouse wheel doesn't scroll a page that listens to the wheel itself. A fix is waiting in [#194](https://github.com/driceroland/Search/pull/194). *([#180](https://github.com/driceroland/Search/issues/180), [#194](https://github.com/driceroland/Search/pull/194))*
 - [x] **Full-screen video goes black** A video put full screen goes black. A fix is waiting in [#220](https://github.com/driceroland/Search/pull/220). *([#220](https://github.com/driceroland/Search/pull/220))*
 - [x] **Toolbar buttons too tight** The back, forward and reload buttons sit edge to edge. A fix is waiting in [#209](https://github.com/driceroland/Search/pull/209). *([#185](https://github.com/driceroland/Search/issues/185), [#209](https://github.com/driceroland/Search/pull/209))*
 - [x] **History keeps each video apart** History keeps different articles and videos from the same site apart. *([#154](https://github.com/driceroland/Search/pull/154))*
@@ -70,7 +71,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Window stutters between screens** Dragging the window from one screen to another stutters. Needs a trace recorded on two screens. *(X)*
 - [ ] **Web processes start before the window** The web process pool is made before the first window; check whether 1.0.2's launch order already covers it. *([#157](https://github.com/driceroland/Search/issues/157))*
 - [ ] **⌘F lands on the back button** On some pages ⌘F focuses the back button instead of the find field. *([#172](https://github.com/driceroland/Search/issues/172))*
-- [ ] **Mouse wheel stuck on some pages** A mouse wheel doesn't scroll a page that listens to the wheel itself. A fix is waiting in [#194](https://github.com/driceroland/Search/pull/194). *([#180](https://github.com/driceroland/Search/issues/180), [#194](https://github.com/driceroland/Search/pull/194))*
 - [ ] **Wrong icons on some tabs** Meta AI shows Google's G, Swagger UI stays on a letter. [#216](https://github.com/driceroland/Search/pull/216) fixes it; two small changes asked before it goes in. *([#181](https://github.com/driceroland/Search/issues/181), [#216](https://github.com/driceroland/Search/pull/216))*
 - [ ] **Window flashes at its default size** At launch the window opens at its default size for an instant, then takes its saved size. [#204](https://github.com/driceroland/Search/pull/204) tried a fix; in a test it lost the saved size instead, so changes were asked. *([#202](https://github.com/driceroland/Search/issues/202), [#204](https://github.com/driceroland/Search/pull/204))*
 - [ ] **Early content scripts miss restored pages** A content script that runs at document_start can miss the page restored at a hidden launch. *([#199](https://github.com/driceroland/Search/issues/199))*
@@ -119,7 +119,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **More extension APIs** More of the extension APIs. The side panel, and invisible offscreen documents ([#192](https://github.com/driceroland/Search/pull/192)). *([#12](https://github.com/driceroland/Search/issues/12), X, [#192](https://github.com/driceroland/Search/pull/192))*
 - [ ] **Drive Search from an agent** An MCP server over the bench, for automation and testing. An earlier pull request, [#14](https://github.com/driceroland/Search/pull/14), began one. *(X)*
 - [ ] **Web push notifications** As far as WebKit lets an app other than Safari have them. *(X)*
-- [ ] **Smoother mouse-wheel scrolling** Smoother scrolling with a mouse wheel. To look into. *(X)*
 - [ ] **Split view** Two tabs or more side by side in one window. *([#173](https://github.com/driceroland/Search/issues/173))*
 - [ ] **Faster animations** Spaces especially, compared with Zen. *(email)*
 - [ ] **Block YouTube's ads** YouTube's ads. They come from youtube.com itself, which the blocker's lists can't tell apart. Whether to go that far is an open question. *([#218](https://github.com/driceroland/Search/issues/218), email)*
@@ -128,6 +127,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 ## Pull requests to review
 
 - [ ] **Search doesn't come to the front** When another app, like Mail, opens a link in Search, its window stays behind. *([#95](https://github.com/driceroland/Search/issues/95))*
+- [ ] **Smoother mouse-wheel scrolling** Smoother scrolling with a mouse wheel. To look into. *(X)*
 
 ## Drice's call
 
