@@ -164,6 +164,12 @@ final class Preferences: ObservableObject {
     @Published var floatsAway: Bool {
         didSet { store.set(floatsAway, forKey: "float.away") }
     }
+    /// A video playing on a video site comes out into the floating window
+    /// when you go to another tab (Browser.leaving). On, as it always was;
+    /// the switch is for turning it off.
+    @Published var floatsOnLeave: Bool {
+        didSet { store.set(floatsOnLeave, forKey: "float.leave") }
+    }
     /// Separate sets of tabs, each with its own sign-ins (see Spaces.swift).
     /// Off unless asked for.
     @Published var usesSpaces: Bool {
@@ -229,6 +235,7 @@ final class Preferences: ObservableObject {
         floatFlicks = flicks
         Float.flicks = flicks
         floatsAway = store.bool(forKey: "float.away")
+        floatsOnLeave = store.object(forKey: "float.leave") as? Bool ?? true
         let links = store.bool(forKey: "links.show")
         showsLinks = links
         HoveredLink.on = links

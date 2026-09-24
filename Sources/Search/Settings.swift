@@ -224,6 +224,10 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.floatFlicks)
             }
             Rule()
+            Line("Float the video when you switch tabs", "A video playing on YouTube and the like comes out into its floating window when you go to another tab, and back when you return. ⇧⌘P still floats one by hand") {
+                Switch(on: $prefs.floatsOnLeave)
+            }
+            Rule()
             Line("Float the video when you switch apps", "A video playing on the site you're on comes out into its floating window as another app comes to the front, and goes back into its tab when you return") {
                 Switch(on: $prefs.floatsAway)
             }
