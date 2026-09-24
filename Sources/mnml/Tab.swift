@@ -319,6 +319,7 @@ final class Tab: ObservableObject, Identifiable {
 
     private func build() -> PageView {
         let web = PageView(frame: .zero, configuration: configuration)
+        web.tab = self
         // The trackpad pinch is WebKit's own: it magnifies what is on screen
         // and lets you move around inside it, the way pinching does everywhere
         // else on a Mac. ⌘+ and ⌘- are the other thing — they lay the page out
@@ -1042,9 +1043,43 @@ final class AudioWatch: NSObject {
 
 /// A web view that reads the two-finger swipe for itself.
 final class PageView: WKWebView {
+    weak var tab: Tab?
+
+    private var browser: Browser? {
+        (uiDelegate as? Browser) ?? (tab?.delegate as? Browser) ?? {
+            if #available(macOS 15.4, *) {
+                return Extensions.shared.browser
+            }
+            return nil
+        }()
+    }
+
     /// What extensions added to the right-click menu, at the end of it.
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
+
+        // WebKit defaults "Search with …" to the system search service, which opens
+        // the query in the Mac's default browser (e.g. Safari) instead of Search.
+        // Take the item over so it searches using Search's own chosen engine in a new tab.
+        if let searchItem = menu.items.first(where: {
+            $0.identifier?.rawValue == "WKMenuItemIdentifierSearchWeb" || $0.tag == 21
+                || $0.title.contains("Search with ") || $0.title.contains("Pesquisar com ")
+                || $0.title.contains("Buscar com ")
+        }) {
+            searchItem.target = self
+            searchItem.action = #selector(searchWithEngine(_:))
+            if let browser {
+                let name = browser.prefs.engine.name(custom: browser.prefs.customEngine)
+                if searchItem.title.hasPrefix("Pesquisar com ") {
+                    searchItem.title = "Pesquisar com \(name)"
+                } else if searchItem.title.hasPrefix("Buscar com ") {
+                    searchItem.title = "Buscar com \(name)"
+                } else {
+                    searchItem.title = "Search with \(name)"
+                }
+            }
+        }
+
         guard #available(macOS 15.4, *),
               let tab = Extensions.shared.browser?.tabs.first(where: { $0.built === self })
         else { return }
@@ -1052,6 +1087,42 @@ final class PageView: WKWebView {
         guard !items.isEmpty else { return }
         menu.addItem(.separator())
         items.forEach { menu.addItem($0) }
+    }
+
+    @objc private func searchWithEngine(_ sender: NSMenuItem) {
+        guard let browser else { return }
+        let js = """
+        (() => {
+            function getSelectedText(win) {
+                try {
+                    const s = win.getSelection();
+                    if (s && s.toString().length > 0) return s.toString();
+                    const active = win.document.activeElement;
+                    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+                        const start = active.selectionStart;
+                        const end = active.selectionEnd;
+                        if (typeof start === 'number' && typeof end === 'number' && start !== end) {
+                            return active.value.substring(start, end);
+                        }
+                    }
+                    if (win.frames) {
+                        for (let i = 0; i < win.frames.length; i++) {
+                            const text = getSelectedText(win.frames[i]);
+                            if (text && text.length > 0) return text;
+                        }
+                    }
+                } catch (e) {}
+                return '';
+            }
+            return getSelectedText(window);
+        })()
+        """
+        evaluateJavaScript(js) { [weak browser] result, _ in
+            guard let text = result as? String else { return }
+            let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty, let url = browser?.searchURL(for: query) else { return }
+            _ = browser?.open(url, foreground: true)
+        }
     }
 
     /// Told where a sideways swipe has got to, and nil when there is none.
