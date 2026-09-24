@@ -218,6 +218,39 @@ private struct MenuLine: View {
     }
 }
 
+/// The base a sheet draws on, and the reason a panel is legible over a page
+/// that has hidden its own cursor.
+///
+/// WebKit turns `cursor: none` into an AppKit cursor rect over the whole web
+/// view. SwiftUI panels layered on top add no rect of their own, so when the
+/// pointer crosses from the page into a sheet the invisible rect still wins,
+/// and the sheet reads as empty air. This gives the sheet one arrow-sized
+/// rect to win with, frontmost because its NSView sits above the web view
+/// (a sheet is drawn by `.overlay { panels }` on `ContentView.body`).
+private struct CursorGround: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { CursorGroundView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class CursorGroundView: NSView {
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .arrow)
+    }
+
+    // Re-arm the rect each time this view joins a window or changes size, so
+    // AppKit notices it even if the pointer has not moved since the sheet
+    // appeared. Without this the arrow only shows after a twitch.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.invalidateCursorRects(for: self)
+    }
+
+    override func layout() {
+        super.layout()
+        window?.invalidateCursorRects(for: self)
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var browser: Browser
 
@@ -545,6 +578,10 @@ struct ContentView: View {
         close: @escaping () -> Void
     ) -> some View {
         ZStack {
+            // The floor owns the cursor; see CursorGround.
+            CursorGround()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
             Color.black.opacity(0.10)
                 .ignoresSafeArea()
                 .onTapGesture(perform: close)
