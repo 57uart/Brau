@@ -300,8 +300,9 @@ final class Tab: ObservableObject, Identifiable {
     /// is, in the web view's points, or nil when it has left.
     var onField: ((Tab, CGRect?) -> Void)?
     /// The site the sign-in was sent from — not the one it landed on —
-    /// then the name and the password.
-    var onCredentials: ((Tab, String, String, String) -> Void)?
+    /// then the name and the password, and whether that page came over
+    /// plain http.
+    var onCredentials: ((Tab, String, String, String, Bool) -> Void)?
     var onPickEnd: ((Tab) -> Void)?
     var onPickTrouble: ((Tab, String) -> Void)?
     /// Right-click landed on an image. WebKit's own menu offers to copy or
@@ -624,7 +625,7 @@ final class Tab: ObservableObject, Identifiable {
     /// Whether the sign-in worked is only known afterwards: a page that
     /// comes back without a password box took it, one that still has the
     /// box refused it, and only the first is worth remembering.
-    private var sent: (host: String, user: String, password: String, at: Date)?
+    private var sent: (host: String, user: String, password: String, clear: Bool, at: Date)?
 
     func sentSignIn(user: String, password: String) {
         // The host now, while the page is still the sign-in page: a moment
@@ -632,7 +633,7 @@ final class Tab: ObservableObject, Identifiable {
         // the password belongs.
         guard let host = address?.host()?.lowercased() else { return }
         let bare = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-        sent = (bare, user, password, Date())
+        sent = (bare, user, password, address?.scheme?.lowercased() == "http", Date())
     }
 
     /// The page has moved on — a new document has loaded, or the sign-in
@@ -667,7 +668,7 @@ final class Tab: ObservableObject, Identifiable {
                 // still on its way.
                 if (still as? Bool) == true { return }
                 self.sent = nil
-                self.onCredentials?(self, sent.host, sent.user, sent.password)
+                self.onCredentials?(self, sent.host, sent.user, sent.password, sent.clear)
             }
         }
     }

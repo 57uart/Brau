@@ -279,7 +279,7 @@ final class Browser: NSObject, ObservableObject {
         guard let offer = offering else { return }
         offering = nil
         let login = offer.login
-        guard Vault.save(host: login.host, user: login.user, password: login.password, used: Date()) else {
+        guard Vault.save(host: login.host, user: login.user, password: login.password, used: Date(), clear: login.clear) else {
             announce("The keychain refused it")
             return
         }
@@ -378,7 +378,7 @@ final class Browser: NSObject, ObservableObject {
         case .success(let found):
             var kept = 0
             for login in found.logins
-            where Vault.save(host: login.host, user: login.user, password: login.password, used: login.used) {
+            where Vault.save(host: login.host, user: login.user, password: login.password, used: login.used, clear: login.clear) {
                 kept += 1
             }
             var never = Vault.never
@@ -1585,11 +1585,16 @@ final class Browser: NSObject, ObservableObject {
             guard prefs.fillsPasswords, tab.id == activeID, pickedInto != tab.id,
                   let host = curtain.host(of: tab.address)
             else { return }
-            let known = Array(Vault.logins(matching: host).prefix(5))
+            // A page that came over plain http can have been written by
+            // anyone on the way here — a café's network, a hotel's. It is
+            // offered only what was kept from plain http too, never an
+            // account kept from the https site of the same name.
+            let inTheClear = tab.address?.scheme?.lowercased() == "http"
+            let known = Array(Vault.logins(matching: host).filter { !inTheClear || $0.clear }.prefix(5))
             suggesting = known.isEmpty ? nil : Suggesting(tab: tab.id, spot: spot, logins: known)
         }
 
-        tab.onCredentials = { [weak self] tab, host, user, password in
+        tab.onCredentials = { [weak self] tab, host, user, password, clear in
             guard let self, prefs.savesPasswords, !password.isEmpty, !tab.shy,
                   !Vault.isNever(host)
             else { return }
@@ -1598,12 +1603,14 @@ final class Browser: NSObject, ObservableObject {
             if #available(macOS 15.4, *), Extensions.shared.passwordSavingTakenBy != nil { return }
             let known = Vault.logins(for: host)
             // Nothing to ask about one that is already known.
-            if let same = known.first(where: { $0.user == user && $0.password == password }) {
+            if var same = known.first(where: { $0.user == user && $0.password == password }) {
+                // Where it was last used is where it is offered from now on.
+                same.clear = clear
                 Vault.touch(same)
                 return
             }
             let offer = Offer(
-                login: Login(host: host, user: user, password: password, used: nil),
+                login: Login(host: host, user: user, password: password, used: nil, clear: clear),
                 changed: known.contains { $0.user == user }
             )
             guard offering != offer else { return }
