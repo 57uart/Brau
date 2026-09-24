@@ -728,6 +728,35 @@ final class Bench {
                 }
             }
 
+        case "pull":
+            // Two fingers sideways over the page: DX points in STEPS scroll
+            // events spread over MS milliseconds, with a trackpad's phases,
+            // handed to the page's view — for the swipe back and forward.
+            // Reports where the tab is after. Only on a SEARCH_PROBE run.
+            guard Store.testing else { answer(["error": "pull only works on a --test run"]); return }
+            guard let tab = browser.active, let web = tab.built, let dx = request["dx"] as? Double
+            else { answer(["error": "pull needs a loaded tab and a distance"]); return }
+            let steps = max(2, request["steps"] as? Int ?? 10)
+            let ms = max(1, request["ms"] as? Double ?? 200)
+            let before = tab.address?.absoluteString ?? ""
+            func send(_ phase: Int64, _ delta: Double) {
+                guard let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: 0, wheel2: Int32(delta), wheel3: 0) else { return }
+                cg.setIntegerValueField(CGEventField(rawValue: 88)!, value: 1) // kCGScrollWheelEventIsContinuous
+                cg.setIntegerValueField(CGEventField(rawValue: 99)!, value: phase) // kCGScrollWheelEventScrollPhase
+                cg.setIntegerValueField(CGEventField(rawValue: 97)!, value: Int64(delta)) // kCGScrollWheelEventPointDeltaAxis2
+                if let event = NSEvent(cgEvent: cg) { web.scrollWheel(with: event) }
+            }
+            send(1, 0)
+            for n in 1...steps {
+                DispatchQueue.main.asyncAfter(deadline: .now() + ms / 1000 * Double(n) / Double(steps)) {
+                    send(2, dx / Double(steps))
+                    if n == steps { send(4, 0) }
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + ms / 1000 + 1.2) {
+                answer(["before": before, "after": tab.address?.absoluteString ?? ""])
+            }
+
         case "place":
             // A tab put at another place in the row, as a drag would.
             guard let id = request["id"] as? String, let to = request["to"] as? Int,
@@ -1130,7 +1159,7 @@ final class Bench {
 
         default:
             answer(["error": "unknown command “\(verb)”", "commands": [
-                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "space", "strip", "column", "site", "ui",
+                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "pull", "space", "strip", "column", "site", "ui",
             ]])
         }
     }

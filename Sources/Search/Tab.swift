@@ -1336,8 +1336,14 @@ final class PageView: WKWebView {
     private var going = false
     private var pulls = 0
 
-    /// How far the fingers travel before letting go means it.
-    private static let arm: CGFloat = 110
+    /// How far the fingers travel before letting go means it. It was 110,
+    /// and going back took a long reach across the trackpad — "too far",
+    /// people said; Safari goes on less.
+    private static let arm: CGFloat = 70
+    /// A quick flick goes too, short of that, as it does in Safari: at least
+    /// this far, within `flickTime` of setting off.
+    private static let flick: CGFloat = 30
+    private static let flickTime: TimeInterval = 0.25
     /// Less than this and there is nothing to show yet — or nothing left to.
     private static let show: CGFloat = 6
 
@@ -1535,7 +1541,9 @@ final class PageView: WKWebView {
 
     private func release() {
         defer { spent = true }
-        guard !spent, free == true, armedNow else {
+        let flicked = !spent && free == true && travel >= PageView.flick
+            && (asked.map { Date().timeIntervalSince($0) <= PageView.flickTime } ?? false)
+        guard !spent, free == true, armedNow || flicked else {
             settle(nil)
             return
         }
