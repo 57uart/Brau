@@ -42,6 +42,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [x] **⇧⌘C copies without a word** ⇧⌘C copies the address, but nothing in the app says so. A fix is waiting in [#182](https://github.com/driceroland/Search/pull/182). *([#176](https://github.com/driceroland/Search/issues/176), [#182](https://github.com/driceroland/Search/pull/182))*
 - [x] **Links from other apps skip the pins** A link opened from another app never lands among the pins. *([#219](https://github.com/driceroland/Search/issues/219))*
 - [x] **Little window for outside links** A little window for links opened from other apps, and a shortcut to open it from anywhere. *(X, [#227](https://github.com/driceroland/Search/pull/227))*
+- [x] **Pop-ups named by their site** A window a page opens at a size of its own is named in the tabs by its site, not by the title the page chose. *(message)*
 
 ## Now — fixes for the next update
 
