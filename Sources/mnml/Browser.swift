@@ -1330,7 +1330,8 @@ final class Browser: NSObject, ObservableObject {
     /// built from the extension's configuration, which WebKit keeps to that
     /// extension's own pages, so the load went nowhere and the button did
     /// nothing. The tab is swapped where it stands for an ordinary one on
-    /// the site: to the eye, the page went there.
+    /// the site: to the eye, the page went there. The other way round too:
+    /// an extension sending a website's tab to one of its own pages.
     func replace(_ tab: Tab, going url: URL) {
         guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
         let fresh = Tab(bench: tab.bench, configuration: Browser.extensionConfiguration(for: url))
@@ -1506,8 +1507,9 @@ final class Browser: NSObject, ObservableObject {
         lift(active, quietly: true)
     }
 
-    /// Another app in front: the video comes along, as in Arc. Only one lifted
-    /// this way goes home on its own when mnml comes back.
+    /// Another app in front: the video comes along, as in Arc (Settings ›
+    /// General). Only one lifted this way goes home on its own when mnml
+    /// comes back.
     private var liftedAway = false
 
     /// The window last in front. Asked once the app has gone to the back,
@@ -1515,7 +1517,7 @@ final class Browser: NSObject, ObservableObject {
     static weak var front: Browser?
 
     func appLeft() {
-        guard Browser.front == nil || Browser.front === self else { return }
+        guard prefs.floatsAway, Browser.front == nil || Browser.front === self else { return }
         liftedAway = !floater.showing
         lift(active, quietly: true)
     }

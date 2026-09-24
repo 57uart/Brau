@@ -39,6 +39,10 @@ final class Float {
 
     var showing: Bool { panel != nil }
 
+    /// Two fingers flick the window to a corner instead of pushing it
+    /// along (Settings › General). Off unless asked for.
+    static var flicks = false
+
     /// Where a flick sends the window, a margin in from the edges of
     /// `area`. A swipe clearly both ways — between about 22° and 68° — takes
     /// it to the corner it points at; a straighter one along its stronger
@@ -376,18 +380,54 @@ final class Float {
             resize(to: origin.width + dx, from: origin)
         }
 
+        /// Two fingers on the trackpad move the window. There is nothing to
+        /// scroll here — the window holds one picture — so the gesture is free
+        /// to mean the thing you actually want it to mean.
+        ///
+        /// And the pointer travels with it. Moving the window alone leaves the
+        /// cursor behind: it drifts towards the edge, falls out, and the window
+        /// stops answering mid-gesture. Carrying it keeps it at the same place
+        /// in the frame, so the window can be pushed as far as the screen goes.
+        override func scrollWheel(with event: NSEvent) {
+            guard let window else { return }
+            // Only while fingers are actually down. Letting the glide continue
+            // would fling the pointer across the screen after them.
+            guard event.momentumPhase == [] else { return }
+            if Float.flicks { return flickWheel(with: event) }
+
+            let dx = event.scrollingDeltaX
+            let dy = event.scrollingDeltaY
+            guard dx != 0 || dy != 0 else { return }
+
+            let spot = window.frame.origin
+            window.setFrameOrigin(NSPoint(x: spot.x + dx, y: spot.y - dy))
+
+            // Screen coordinates run up from the bottom, the cursor's run down
+            // from the top of the first display.
+            guard let ground = NSScreen.screens.first else { return }
+            let mouse = NSEvent.mouseLocation
+            CGWarpMouseCursorPosition(
+                CGPoint(
+                    x: mouse.x + dx,
+                    y: ground.frame.height - (mouse.y - dy)
+                )
+            )
+            // Without this the pointer and the physical trackpad stay parted
+            // for a moment, and the next flick arrives from the wrong place.
+            CGAssociateMouseAndMouseCursorPosition(1)
+        }
+
         /// Two fingers flick the window to a corner, as in Dia and Arc: a
         /// swipe up takes it to the top on the side it is on, a swipe left to
-        /// the left at the height it is at, and so on — one move a swipe,
-        /// however long the swipe. Dragging it anywhere is the click's.
+        /// the left at the height it is at, a diagonal one to that corner —
+        /// one move a swipe, however long the swipe. Dragging it anywhere is
+        /// still the click's.
         private var swipe: CGVector = .zero
         private var flicked = false
         /// For a wheel, which has no gesture to belong to: one flick a turn.
         private var lastWheelFlick = Date.distantPast
 
-        override func scrollWheel(with event: NSEvent) {
-            // The glide after the fingers lift is not a second swipe.
-            guard event.momentumPhase == [] else { return }
+        private func flickWheel(with event: NSEvent) {
             // Which way the fingers went, on screen: with natural scrolling
             // the deltas run with the fingers, without it against them.
             let sign: CGFloat = event.isDirectionInvertedFromDevice ? 1 : -1
@@ -421,9 +461,8 @@ final class Float {
             }
         }
 
-        /// To the corner the swipe points at, along its stronger direction,
-        /// keeping the other: a margin in from the edges of the screen's
-        /// usable part.
+        /// To the corner the swipe points at, a margin in from the edges of
+        /// the screen's usable part.
         private func flick(_ way: CGVector) {
             guard let window, let area = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
             let target = Float.corner(for: window.frame, in: area, toward: way)

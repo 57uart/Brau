@@ -149,6 +149,19 @@ final class Preferences: ObservableObject {
             AutoScroll.on = autoScroll
         }
     }
+    /// Two fingers flick the floating video to a corner (see Float.swift).
+    /// Off unless asked for.
+    @Published var floatFlicks: Bool {
+        didSet {
+            store.set(floatFlicks, forKey: "float.flicks")
+            Float.flicks = floatFlicks
+        }
+    }
+    /// A video playing floats out when another app comes to the front, and
+    /// back when Search does (see Browser.appLeft). Off unless asked for.
+    @Published var floatsAway: Bool {
+        didSet { store.set(floatsAway, forKey: "float.away") }
+    }
     /// Separate sets of tabs, each with its own sign-ins (see Spaces.swift).
     /// Off unless asked for.
     @Published var usesSpaces: Bool {
@@ -213,6 +226,11 @@ final class Preferences: ObservableObject {
         // existed; they are not asked to sit through it.
         welcomed = store.bool(forKey: "welcomed") || store.object(forKey: "glyph") != nil
         usesSpaces = store.bool(forKey: "spaces")
+        // mnml: on unless turned off (upstream: off unless turned on).
+        let flicks = store.object(forKey: "float.flicks") as? Bool ?? true
+        floatFlicks = flicks
+        Float.flicks = flicks
+        floatsAway = store.object(forKey: "float.away") as? Bool ?? true
         let scrolls = store.bool(forKey: "autoscroll")
         autoScroll = scrolls
         AutoScroll.on = scrolls
