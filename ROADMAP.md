@@ -35,13 +35,11 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
   security report sent privately never comes here, not even in outline: it
   is fixed, it ships, and only then is it credited in CHANGELOG.md.
 
-## Being built now
-
-- [ ] **Media pauses when switching spaces** Music or a video playing in one space stops when you switch to another. *([#74](https://github.com/driceroland/Search/issues/74))*
-- [ ] **Web Inspector blanks the page** With the Web Inspector open, resizing the window turns the page blank. *([#91](https://github.com/driceroland/Search/issues/91))*
-
 ## Done, in the next version
 
+- [x] **Media pauses when switching spaces** Music or a video playing in one space stops when you switch to another. *([#74](https://github.com/driceroland/Search/issues/74))*
+- [x] **History is slow** History is slow to open, stutters as it scrolls, and Escape doesn't close it. *([#67](https://github.com/driceroland/Search/issues/67))*
+- [x] **Web Inspector blanks the page** With the Web Inspector open, resizing the window turns the page blank. *([#91](https://github.com/driceroland/Search/issues/91))*
 - [x] **History keeps each video apart** History keeps different articles and videos from the same site apart. *([#154](https://github.com/driceroland/Search/pull/154))*
 - [x] **⌘W stops bouncing between pins** A pin already put down stays down. *([#125](https://github.com/driceroland/Search/pull/125))*
 - [x] **Local certificates, trusted only here** A certificate is taken on trust only for this Mac itself. On main already; the pull request closes, with thanks, when it ships. *([#165](https://github.com/driceroland/Search/pull/165), [#133](https://github.com/driceroland/Search/issues/133))*
@@ -64,7 +62,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Passkeys under the sign-in field** A site's passkey button brings up the Mac's passkey sheet now; next is the suggestion Safari shows as you click into a sign-in field. *([#17](https://github.com/driceroland/Search/issues/17), X)*
 - [ ] **iCloud Passwords** Pairing asks for the code twice ([#217](https://github.com/driceroland/Search/pull/217) fixes the first code); one person says it doesn't work at all, details asked. *([#17](https://github.com/driceroland/Search/issues/17), email ×2, [#217](https://github.com/driceroland/Search/pull/217))*
 - [ ] **Window stutters between screens** Dragging the window from one screen to another stutters. Needs a trace recorded on two screens. *(X)*
-- [ ] **History is slow** History is slow to open, stutters as it scrolls, and Escape doesn't close it. *([#67](https://github.com/driceroland/Search/issues/67))*
 - [ ] **Web processes start before the window** The web process pool is made before the first window; check whether 1.0.2's launch order already covers it. *([#157](https://github.com/driceroland/Search/issues/157))*
 - [ ] **⌘F lands on the back button** On some pages ⌘F focuses the back button instead of the find field. *([#172](https://github.com/driceroland/Search/issues/172))*
 - [ ] **Mouse wheel stuck on some pages** A mouse wheel doesn't scroll a page that listens to the wheel itself. A fix is waiting in [#194](https://github.com/driceroland/Search/pull/194). *([#180](https://github.com/driceroland/Search/issues/180), [#194](https://github.com/driceroland/Search/pull/194))*
@@ -89,6 +86,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Settings sidebar corners** The Settings sidebar has rounded inner corners. A fix is waiting in [#222](https://github.com/driceroland/Search/pull/222). *([#221](https://github.com/driceroland/Search/issues/221), [#222](https://github.com/driceroland/Search/pull/222))*
 - [ ] **Toolbar buttons too tight** The back, forward and reload buttons sit edge to edge. A fix is waiting in [#209](https://github.com/driceroland/Search/pull/209). *([#185](https://github.com/driceroland/Search/issues/185), [#209](https://github.com/driceroland/Search/pull/209))*
 - [ ] **⇧⌘C copies without a word** ⇧⌘C copies the address, but nothing in the app says so. A fix is waiting in [#182](https://github.com/driceroland/Search/pull/182). *([#176](https://github.com/driceroland/Search/issues/176), [#182](https://github.com/driceroland/Search/pull/182))*
+- [ ] **Bitwarden with a self-hosted server** Signing in from the extension to a self-hosted Bitwarden server says the user doesn't exist, while the same address works in a tab. To fix before 1.0.3. *(X)*
 
 ## Next — small additions people asked for
 
