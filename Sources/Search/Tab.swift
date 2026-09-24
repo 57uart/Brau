@@ -103,6 +103,11 @@ enum Web {
         // Off by default on macOS, which is why a full-screen button on a video
         // did nothing at all: the page asks, and WebKit refuses without a word.
         config.preferences.isElementFullscreenEnabled = true
+        // On by default on macOS: a page could open a new tab, and take you
+        // to it, whenever it liked — on load, on a timer. Off, window.open
+        // works only from a click or a key, as Safari's pop-up blocking has
+        // it; a sign-in window opened by its button still opens.
+        config.preferences.javaScriptCanOpenWindowsAutomatically = false
         config.mediaTypesRequiringUserActionForPlayback = .audio
         if Store.testing, !Store.measuring { config.preferences.inactiveSchedulingPolicy = .none }
         inspector(config.preferences)
