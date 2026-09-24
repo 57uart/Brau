@@ -39,16 +39,18 @@ final class Float {
 
     var showing: Bool { panel != nil }
 
-    /// Where a flick sends the window: along the swipe's stronger direction
-    /// to that edge, and against whichever of the other two edges it is
-    /// nearer — a corner, a margin in from the edges of `area`.
-    nonisolated static func corner(for frame: NSRect, in area: NSRect, toward way: CGVector, margin: CGFloat = 24) -> NSPoint {
+    /// Where a flick sends the window, a margin in from the edges of
+    /// `area`. A swipe clearly both ways — between about 30° and 60° — takes
+    /// it to the corner it points at; a straighter one along its stronger
+    /// direction, against whichever of the other two edges it is nearer.
+    nonisolated static func corner(for frame: NSRect, in area: NSRect, toward way: CGVector, margin: CGFloat = 12) -> NSPoint {
         let left = area.minX + margin, right = area.maxX - margin - frame.width
         let bottom = area.minY + margin, top = area.maxY - margin - frame.height
-        if abs(way.dx) >= abs(way.dy) {
-            return NSPoint(x: way.dx > 0 ? right : left, y: frame.midY > area.midY ? top : bottom)
-        }
-        return NSPoint(x: frame.midX > area.midX ? right : left, y: way.dy > 0 ? top : bottom)
+        let across = abs(way.dx), up = abs(way.dy)
+        let x = way.dx > 0 ? right : left, y = way.dy > 0 ? top : bottom
+        if min(across, up) >= 0.58 * max(across, up) { return NSPoint(x: x, y: y) }
+        if across >= up { return NSPoint(x: x, y: frame.midY > area.midY ? top : bottom) }
+        return NSPoint(x: frame.midX > area.midX ? right : left, y: y)
     }
 
     func lift(_ page: NSView) {
@@ -325,6 +327,7 @@ final class Float {
 
         override func mouseDown(with event: NSEvent) {
             guard let window else { return }
+            stopGlide()
             grab = NSEvent.mouseLocation
             origin = window.frame
             stretching = atCorner(convert(event.locationInWindow, from: nil))
@@ -374,7 +377,8 @@ final class Float {
             swipe.dx += step.dx
             swipe.dy += step.dy
             // Far enough, and clearly one way, to be a flick and not a touch.
-            if !flicked, max(abs(swipe.dx), abs(swipe.dy)) > 24 {
+            // Enough of the swipe to read its angle — straight or diagonal.
+            if !flicked, hypot(swipe.dx, swipe.dy) > 30 {
                 flicked = true
                 flick(swipe)
             }
@@ -389,14 +393,48 @@ final class Float {
         /// usable part.
         private func flick(_ way: CGVector) {
             guard let window, let area = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
-            var frame = window.frame
-            frame.origin = Float.corner(for: frame, in: area, toward: way)
-            guard frame.origin != window.frame.origin else { return }
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.28
-                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1)
-                window.animator().setFrame(frame, display: true)
+            let target = Float.corner(for: window.frame, in: area, toward: way)
+            guard target != window.frame.origin else { return }
+            glide(to: target)
+        }
+
+        // The glide, a frame at a time off the display's own refresh — 120
+        // a second on a ProMotion screen, where AppKit's window animation
+        // stepped at 60 — on a critically damped spring: quick away,
+        // settling into the corner without overshooting it.
+        private var gliding: CADisplayLink?
+        private var glideFrom: NSPoint = .zero
+        private var glideTo: NSPoint = .zero
+        private var glideStart: CFTimeInterval = 0
+
+        private func glide(to target: NSPoint) {
+            guard let window else { return }
+            glideFrom = window.frame.origin
+            glideTo = target
+            glideStart = CACurrentMediaTime()
+            if gliding == nil {
+                let link = displayLink(target: self, selector: #selector(glideStep))
+                link.add(to: .main, forMode: .common)
+                gliding = link
             }
+        }
+
+        @objc private func glideStep(_ link: CADisplayLink) {
+            guard let window else { stopGlide(); return }
+            let t = CGFloat(CACurrentMediaTime() - glideStart)
+            let omega: CGFloat = 15
+            let done = t > 0.6
+            let p = done ? 1 : 1 - (1 + omega * t) * exp(-omega * t)
+            window.setFrameOrigin(NSPoint(
+                x: glideFrom.x + (glideTo.x - glideFrom.x) * p,
+                y: glideFrom.y + (glideTo.y - glideFrom.y) * p
+            ))
+            if done { stopGlide() }
+        }
+
+        private func stopGlide() {
+            gliding?.invalidate()
+            gliding = nil
         }
 
         /// A pinch sizes it about the pointer: whatever is under your fingers

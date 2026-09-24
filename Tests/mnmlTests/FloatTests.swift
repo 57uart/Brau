@@ -9,21 +9,30 @@ final class FloatTests: XCTestCase {
     private func at(_ x: CGFloat, _ y: CGFloat) -> NSRect { NSRect(origin: NSPoint(x: x, y: y), size: size) }
 
     func testFlicksGoToCorners() {
-        let bottomRight = at(776, 24)
+        let bottomRight = at(788, 12)
         // Up from bottom right: top right.
-        XCTAssertEqual(mnml.Float.corner(for: bottomRight, in: area, toward: CGVector(dx: 2, dy: 40)), NSPoint(x: 776, y: 476))
+        XCTAssertEqual(mnml.Float.corner(for: bottomRight, in: area, toward: CGVector(dx: 2, dy: 40)), NSPoint(x: 788, y: 488))
         // Left from top right: top left.
-        XCTAssertEqual(mnml.Float.corner(for: at(776, 476), in: area, toward: CGVector(dx: -40, dy: 5)), NSPoint(x: 24, y: 476))
+        XCTAssertEqual(mnml.Float.corner(for: at(788, 488), in: area, toward: CGVector(dx: -40, dy: 5)), NSPoint(x: 12, y: 488))
         // Down from top left: bottom left.
-        XCTAssertEqual(mnml.Float.corner(for: at(24, 476), in: area, toward: CGVector(dx: 0, dy: -30)), NSPoint(x: 24, y: 24))
+        XCTAssertEqual(mnml.Float.corner(for: at(12, 488), in: area, toward: CGVector(dx: 0, dy: -30)), NSPoint(x: 12, y: 12))
         // Right from bottom left: back to bottom right.
-        XCTAssertEqual(mnml.Float.corner(for: at(24, 24), in: area, toward: CGVector(dx: 30, dy: 0)), bottomRight.origin)
+        XCTAssertEqual(mnml.Float.corner(for: at(12, 12), in: area, toward: CGVector(dx: 30, dy: 0)), bottomRight.origin)
+    }
+
+    func testDiagonalSwipes() {
+        // Bottom right, up and to the left at 45°: straight to top left.
+        XCTAssertEqual(mnml.Float.corner(for: at(788, 12), in: area, toward: CGVector(dx: -30, dy: 30)), NSPoint(x: 12, y: 488))
+        // Top left, down and to the right at about 35°: bottom right.
+        XCTAssertEqual(mnml.Float.corner(for: at(12, 488), in: area, toward: CGVector(dx: 40, dy: -28)), NSPoint(x: 788, y: 12))
+        // Mostly up with a little left (about 15°): only up, on its own side.
+        XCTAssertEqual(mnml.Float.corner(for: at(788, 12), in: area, toward: CGVector(dx: -10, dy: 40)), NSPoint(x: 788, y: 488))
     }
 
     func testFromAnywhereToTheNearerCorner() {
         // Dragged somewhere near the top left, then flicked right: top right.
-        XCTAssertEqual(mnml.Float.corner(for: at(150, 400), in: area, toward: CGVector(dx: 50, dy: -10)), NSPoint(x: 776, y: 476))
+        XCTAssertEqual(mnml.Float.corner(for: at(150, 400), in: area, toward: CGVector(dx: 50, dy: -10)), NSPoint(x: 788, y: 488))
         // Near the bottom right, flicked up: top right.
-        XCTAssertEqual(mnml.Float.corner(for: at(700, 60), in: area, toward: CGVector(dx: 0, dy: 50)), NSPoint(x: 776, y: 476))
+        XCTAssertEqual(mnml.Float.corner(for: at(700, 60), in: area, toward: CGVector(dx: 0, dy: 50)), NSPoint(x: 788, y: 488))
     }
 }
