@@ -74,7 +74,7 @@ enum ExtensionShims {
         // script or a module, where a wrapper importing it would not.
         if var background = manifest["background"] as? [String: Any] {
             // A manifest is not a way out of its own package: a worker path
-            // that resolves outside the folder is left alone.
+            // that resolves outside the folder, or is a link, is left alone.
             if let worker = background["service_worker"] as? String,
                let path = inside(worker, of: folder) {
                 if var source = try? String(contentsOf: path, encoding: .utf8) {
@@ -135,10 +135,18 @@ enum ExtensionShims {
     }
 
     /// A path a package names, resolved and kept inside the folder it came
-    /// in: `..` in a manifest is not a way out of the package.
+    /// in: `..` in a manifest is not a way out of the package. Nor is a
+    /// symbolic link, which a folder install keeps as it is: the worker is
+    /// read through it and written back over it as a regular file, so a
+    /// link to a file elsewhere would put that file's bytes in the package.
+    /// A folder on the way that is a link is caught by where it resolves.
     nonisolated private static func inside(_ name: String, of folder: URL) -> URL? {
         let path = folder.appendingPathComponent(name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))).standardizedFileURL
-        return path.path.hasPrefix(folder.standardizedFileURL.path + "/") ? path : nil
+        guard path.path.hasPrefix(folder.standardizedFileURL.path + "/"),
+              (try? path.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true,
+              path.resolvingSymlinksInPath().path.hasPrefix(folder.resolvingSymlinksInPath().path + "/")
+        else { return nil }
+        return path
     }
 
     /// The shim as this extension gets it: with the events its code mentions
@@ -1224,6 +1232,11 @@ enum ExtensionShims {
         });
       }
       fill("windows", {
+        // Chrome's, and not WebKit's: an extension subscribing to it at
+        // start — Session Buddy, inside a try — threw there and never
+        // reached the rest, its button's listener included. Never fired:
+        // a window's bounds are read when they are asked for.
+        onBoundsChanged: event(),
         CreateType: enumOf("normal", "popup", "panel"), WindowType: enumOf("normal", "popup", "panel", "app", "devtools"),
         WindowState: { NORMAL: "normal", MINIMIZED: "minimized", MAXIMIZED: "maximized", FULLSCREEN: "fullscreen", LOCKED_FULLSCREEN: "locked-fullscreen" },
       });
@@ -2255,11 +2268,7 @@ enum ExtensionShims {
     /// browser knows about the person using it. WebKit keeps no permission
     /// object for them, they are the APIs this shim exists to supply, so the
     /// gate reads the names the extension's own manifest asked for.
-    /// `tabs.describe` is the one call inside a family WebKit does own where
-    /// the permission guards reading a tab rather than moving or selecting
-    /// it.
     private static let gates: [String: String] = [
-        "tabs.describe": "tabs",
         "bookmarks": "bookmarks",
         "history": "history",
         "downloads": "downloads",
@@ -2272,16 +2281,11 @@ enum ExtensionShims {
     /// What this extension asked for: the names in its manifest and any
     /// optional ones granted since. The checks inside the shim are a
     /// courtesy to honest code, the shim runs beside the extension's own,
-    /// so the one that counts is here.
-    private static func allowed(_ id: String) -> Set<String> {
-        var names = Store.settings.stringArray(forKey: "extensions.granted.\(id)") ?? []
-        let manifest = Extensions.folder(for: id).appendingPathComponent("manifest.json")
-        if let data = try? Data(contentsOf: manifest),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let asked = json["permissions"] as? [Any] {
-            names += asked.compactMap { $0 as? String }
-        }
-        return Set(names)
+    /// so the one that counts is here. The manifest is the one WebKit
+    /// already holds, not the file read again on every call.
+    private static func allowed(_ id: String, context: WKWebExtensionContext) -> Set<String> {
+        let asked = (context.webExtension.manifest["permissions"] as? [Any] ?? []).compactMap { $0 as? String }
+        return Set(asked + (Store.settings.stringArray(forKey: "extensions.granted.\(id)") ?? []))
     }
 
     private static func run(_ api: String, _ args: [Any], context: WKWebExtensionContext, owner: Extensions) async throws -> Any? {
@@ -2295,8 +2299,14 @@ enum ExtensionShims {
         // the shim runs beside the extension's own code, so its checks stop
         // only the honest. A family this extension never asked for is an
         // error, the way Chrome answers a call to an API it lacks.
-        if let needed = gates[api] ?? gates[String(api.prefix(while: { $0 != "." }))],
-           !allowed(id).contains(needed) {
+        // `tabs.describe` is the one call inside a family WebKit does own
+        // where the permission guards reading a tab rather than moving or
+        // selecting it. WebKit keeps that permission, optional grants
+        // included, so it is asked.
+        if api == "tabs.describe", !context.hasPermission(.tabs) {
+            throw Unsupported(what: "The extension never asked for \u{201C}tabs\u{201D}")
+        }
+        if let needed = gates[String(api.prefix(while: { $0 != "." }))], !allowed(id, context: context).contains(needed) {
             throw Unsupported(what: "The extension never asked for \u{201C}\(needed)\u{201D}")
         }
 
@@ -3054,13 +3064,19 @@ enum ExtensionAuth {
     /// the tab that began the sign-in, which is then handed over and never
     /// loaded. Any page can go to an address shaped like one of these, and
     /// what it carries would be delivered as the flow's answer: only the
-    /// tab the flow was started in may finish it.
+    /// tab the flow was started in may finish it, or a window that tab's
+    /// page opened, since some providers finish the sign-in in a popup.
     static func intercept(_ url: URL, browser: Browser, from webView: WKWebView) -> Bool {
         guard let host = url.host()?.lowercased(), host.hasSuffix(".chromiumapp.org") else { return false }
         let id = String(host.dropLast(".chromiumapp.org".count))
-        guard let entry = waiting[id], browser.tab(for: webView)?.id == entry.tab else { return false }
+        guard let entry = waiting[id], let from = browser.tab(for: webView),
+              from.id == entry.tab || from.opener == entry.tab
+        else { return false }
         waiting.removeValue(forKey: id)
         entry.finish(.success(url))
+        // The popup, when the answer came in one, goes with the flow's tab:
+        // left behind, it would hold a redirect that never loads.
+        if from.id != entry.tab { browser.close(from) }
         if let tab = browser.tabs.first(where: { $0.id == entry.tab }) { browser.close(tab) }
         return true
     }

@@ -251,7 +251,18 @@ struct Command: Identifiable {
             },
             Command("tabs.duplicate", "Duplicate Tab", .tabs, KeyCombo("d"), "The same page again, in a tab beside this one.") { $0.duplicate() },
             Command("tabs.copyAddress", "Copy Address", .tabs, KeyCombo("c", shift: true), "The page's address, on the clipboard.") { $0.copyAddress() },
-            Command("tabs.pasteAndGo", "Paste and Go", .tabs, KeyCombo("v", shift: true), "Goes to the address, or searches for the words, on the clipboard.") { $0.pasteAndGo() },
+            Command("tabs.pasteAndGo", "Paste and Go", .tabs, KeyCombo("v", shift: true), "Goes to the address, or searches for the words, on the clipboard, in a new tab. While typing, pastes without formatting instead.") { browser in
+                // In a text field this key is paste without formatting — a
+                // Google Doc, a form, the address field. A web view has an
+                // input context only while the caret is in something editable.
+                let window = NSApp.keyWindow
+                if browser.active?.typing == true || browser.active?.built?.inputContext != nil
+                    || browser.editing || window?.firstResponder is NSTextView {
+                    _ = window?.firstResponder?.tryToPerform(#selector(NSTextView.pasteAsPlainText(_:)), with: nil)
+                } else {
+                    browser.pasteAndGo()
+                }
+            },
             Command("tabs.closeOthers", "Close Other Tabs", .tabs, nil, "Closes every tab but this one.") { browser in
                 if let tab = browser.active { browser.closeOthers(but: tab) }
             },

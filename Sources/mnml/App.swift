@@ -30,6 +30,8 @@ struct MnmlApp: App {
                 item("file.closeTab")
             }
             CommandGroup(replacing: .printItem) {
+                Button("Share…") { browser.share() }
+                    .disabled(browser.active?.isBlank ?? true)
                 item("file.print")
                     .disabled(browser.active?.isBlank ?? true)
             }
@@ -112,6 +114,8 @@ struct MnmlApp: App {
                 item("tabs.duplicate")
                     .disabled(browser.active?.isBlank ?? true)
                 item("tabs.copyAddress")
+                    .disabled(browser.active?.isBlank ?? true)
+                Button("Copy as Markdown Link") { browser.copyMarkdownLink() }
                     .disabled(browser.active?.isBlank ?? true)
                 item("tabs.pasteAndGo")
                 Divider()
@@ -240,52 +244,40 @@ struct ContentView: View {
     @State private var keys: Any?
     @State private var window: NSWindow?
     @State private var resting: RestingLights?
+    /// The room the page leaves for the column and the strip, set without
+    /// animation (see `make(room:after:)`); nil only before the window is up.
+    @State private var room: CGSize?
+    @State private var roomTicket = 0
 
 
     /// The window: room at the top, one stage for the page, and the row when
     /// there is one.
     private var window_: some View {
-        ZStack(alignment: .top) {
+        ZStack(alignment: .topLeading) {
             // Black while a page has the screen, so the frame of our own window
             // that survives the transition is not a white band across the top.
             (browser.active?.immersed == true ? Color.black : Palette.ground)
 
-            HStack(spacing: 0) {
-                // The column of tabs, in the way that has one. It takes the
-                // full height, so the traffic lights sit in its own corner
-                // rather than over the page.
-                if sidebar {
-                    SideBar(browser: browser, prefs: browser.prefs)
-                        .transition(.move(edge: .leading))
-                }
+            // One stage, always. It starts beside the column and under the
+            // strip, not behind them — a page sliding beneath floating chrome
+            // is a browser showing off, and it costs a compositing pass.
+            //
+            // When the column or the strip comes or goes, the page slides with
+            // it and is resized once, not on every frame of the slide: laid out
+            // again thirty times a second, the page juddered along its right
+            // edge and overshot the window with the spring (see `room`).
+            stage
+                .padding(.leading, roomed.width)
+                .padding(.top, roomed.height)
+                .offset(x: chrome.width - roomed.width, y: chrome.height - roomed.height)
 
-                VStack(spacing: 0) {
-                    // Room for the traffic lights, and for the strip when there
-                    // is one. The page starts under it, not behind it — a page
-                    // sliding beneath floating chrome is a browser showing off,
-                    // and it costs a compositing pass.
-                    Color.clear.frame(height: band)
-
-                    // One stage, always.
-                    if let tab = browser.active {
-                        Page(tab: tab)
-                            .overlay(alignment: .topTrailing) {
-                                if browser.finding {
-                                    FindBar(browser: browser)
-                                        .transition(.move(edge: .top).combined(with: .opacity))
-                                }
-                            }
-                            .overlay(alignment: .topLeading) {
-                                if let asked = browser.suggesting, asked.tab == tab.id {
-                                    AccountList(browser: browser, asked: asked)
-                                        .transition(.opacity)
-                                }
-                            }
-                            .animation(Motion.quick, value: browser.suggesting)
-                    } else {
-                        Palette.ground
-                    }
-                }
+            // The column of tabs, in the way that has one. It takes the full
+            // height, so the traffic lights sit in its own corner rather than
+            // over the page.
+            if sidebar {
+                SideBar(browser: browser, prefs: browser.prefs)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .transition(.move(edge: .leading))
             }
 
             if !browser.prefs.sidebar, !browser.folded, browser.active?.immersed != true {
@@ -296,6 +288,64 @@ struct ContentView: View {
         .ignoresSafeArea()
         .animation(Motion.glide, value: browser.prefs.sidebar)
         .animation(.easeOut(duration: 0.12), value: browser.active?.immersed)
+        .onAppear { if room == nil { room = chrome } }
+        .onChange(of: chrome) { old, new in make(room: new, after: old) }
+    }
+
+    @ViewBuilder
+    private var stage: some View {
+        if let tab = browser.active {
+            Page(tab: tab)
+                .overlay {
+                    if browser.prefs.showsLinks { LinkBubble(status: browser.linkStatus) }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if browser.finding {
+                        FindBar(browser: browser)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
+                .overlay(alignment: .topLeading) {
+                    if let asked = browser.suggesting, asked.tab == tab.id {
+                        AccountList(browser: browser, asked: asked)
+                            .transition(.opacity)
+                    }
+                }
+                .animation(Motion.quick, value: browser.suggesting)
+        } else {
+            Palette.ground
+        }
+    }
+
+    /// What the column and the strip take from the page right now: animated
+    /// as they come and go.
+    private var chrome: CGSize {
+        CGSize(width: sidebar ? browser.prefs.sideWidth : 0, height: band)
+    }
+
+    /// The room the page is laid out to leave them, which is not animated.
+    private var roomed: CGSize { room ?? chrome }
+
+    /// Chrome going away gives the page its room at once, the page sliding
+    /// out from under it at its new size. Chrome arriving slides over a page
+    /// still at its old size, which gives up the room once the slide is over.
+    /// A column being dragged wider or narrower is followed as it goes.
+    private func make(room new: CGSize, after old: CGSize) {
+        let now = roomed
+        let arriving = (old.width == 0 && new.width > 0, old.height == 0 && new.height > 0)
+        var at = now
+        if !arriving.0 { at.width = new.width }
+        if !arriving.1 { at.height = new.height }
+        roomTicket += 1
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) { room = at }
+        guard arriving.0 || arriving.1 else { return }
+        let ticket = roomTicket
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+            guard ticket == roomTicket else { return }
+            withTransaction(still) { room = chrome }
+        }
     }
 
     /// Everything that rises from the bottom edge to say one thing.
@@ -391,7 +441,10 @@ struct ContentView: View {
             .overlay { field }
             .overlay { panels }
             .overlay { TabSwitcherOverlay(browser: browser, switcher: browser.tabSwitcher) }
-            .animation(Motion.settle, value: browser.fieldShowing)
+            // The field comes on its spring, and goes quickly: once Return
+            // is pressed the page is on its way, and the field is not what
+            // there is to watch.
+            .animation(browser.fieldShowing ? Motion.settle : Motion.quick, value: browser.fieldShowing)
             .background(WindowSetup { window = $0; dress($0) })
             .onChange(of: browser.prefs.sidebar) { _, _ in
                 DispatchQueue.main.async { measureLights() }
@@ -719,7 +772,12 @@ struct ContentView: View {
             }
             return take(event) ? nil : event
         }
+        ContentView.keyHook = { event in take(event) ? nil : event }
     }
+
+    /// The same handling the key monitor gives an event, for the bench to
+    /// put a key through the app's own path.
+    static var keyHook: ((NSEvent) -> NSEvent?)?
 
     /// The keys of the top row, by where they sit rather than what they type.
     static let digits: [UInt16: Int] = [
