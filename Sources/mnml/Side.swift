@@ -823,6 +823,8 @@ struct SideRow: View {
     @State private var shake: CGFloat = 0
 
     private var editing: Bool { browser.editingTab == tab.id }
+    /// Something laid over the end of the title: the cross, the ring, the speaker.
+    private var marked: Bool { hovering || tab.loading || tab.noisy }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -844,45 +846,64 @@ struct SideRow: View {
                         .font(.system(size: 9))
                         .foregroundStyle(colour.opacity(0.7))
                 }
-                Text(tab.label)
-                    .font(.system(size: 12.5))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(colour)
+                // The title has the rest of the row and fades out at its end,
+                // as in Dia, rather than giving up room to a cross that isn't
+                // there; the cross, the ring or the speaker is laid over the
+                // end instead, and the fade starts before it while one shows.
+                // Laid over room the row gives it, so a long title can't widen
+                // the row.
+                Color.clear
+                    .frame(maxWidth: .infinity, minHeight: 16, maxHeight: 16)
+                    .overlay(alignment: .leading) {
+                        Text(tab.label)
+                            .font(.system(size: 12.5))
+                            .lineLimit(1)
+                            .fixedSize()
+                            .foregroundStyle(colour)
+                    }
+                    .clipped()
+                    .mask {
+                        HStack(spacing: 0) {
+                            Rectangle()
+                            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: 18)
+                            Color.clear.frame(width: marked ? 20 : 0)
+                        }
+                    }
             }
-
-            Spacer(minLength: 2)
-
-            ZStack {
-                if hovering, !editing {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(Palette.muted)
-                        .frame(width: 15, height: 15)
-                        .background(Palette.ink.opacity(0.07), in: Circle())
-                        .transition(.opacity)
-                } else if tab.loading {
-                    Ring().transition(.opacity)
-                } else if tab.noisy {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 8))
-                        .foregroundStyle(Palette.muted)
-                        .transition(.opacity)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .trailing) {
+            if !editing {
+                ZStack {
+                    if hovering {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(Palette.muted)
+                            .frame(width: 15, height: 15)
+                            .background(Palette.ink.opacity(0.07), in: Circle())
+                            .transition(.opacity)
+                    } else if tab.loading {
+                        Ring().transition(.opacity)
+                    } else if tab.noisy {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(Palette.muted)
+                            .transition(.opacity)
+                    }
                 }
-            }
-            .frame(width: editing ? 0 : 15, height: 15)
-            .opacity(editing ? 0 : 1)
-            .overlay {
-                if !editing {
+                .frame(width: 15, height: 15)
+                .overlay {
                     Color.clear
                         .frame(width: 30, height: 28)
                         .contentShape(Rectangle())
                         .onTapGesture { if hovering { close() } }
+                        .allowsHitTesting(hovering)
                 }
+                .animation(Motion.quick, value: hovering)
+                .animation(Motion.quick, value: tab.loading)
+                .animation(Motion.quick, value: tab.noisy)
             }
-            .animation(Motion.quick, value: hovering)
-            .animation(Motion.quick, value: tab.loading)
-            .animation(Motion.quick, value: tab.noisy)
         }
         .padding(.leading, 10)
         .padding(.trailing, editing ? 10 : 7)
