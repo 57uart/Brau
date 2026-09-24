@@ -39,6 +39,18 @@ final class Float {
 
     var showing: Bool { panel != nil }
 
+    /// Where a flick sends the window: along the swipe's stronger direction
+    /// to that edge, and against whichever of the other two edges it is
+    /// nearer — a corner, a margin in from the edges of `area`.
+    nonisolated static func corner(for frame: NSRect, in area: NSRect, toward way: CGVector, margin: CGFloat = 24) -> NSPoint {
+        let left = area.minX + margin, right = area.maxX - margin - frame.width
+        let bottom = area.minY + margin, top = area.maxY - margin - frame.height
+        if abs(way.dx) >= abs(way.dy) {
+            return NSPoint(x: way.dx > 0 ? right : left, y: frame.midY > area.midY ? top : bottom)
+        }
+        return NSPoint(x: frame.midX > area.midX ? right : left, y: way.dy > 0 ? top : bottom)
+    }
+
     func lift(_ page: NSView) {
         guard panel == nil else { return }
         self.page = page
@@ -331,40 +343,60 @@ final class Float {
             resize(to: origin.width + dx, from: origin)
         }
 
-        /// Two fingers on the trackpad move the window. There is nothing to
-        /// scroll here — the window holds one picture — so the gesture is free
-        /// to mean the thing you actually want it to mean.
-        ///
-        /// And the pointer travels with it. Moving the window alone leaves the
-        /// cursor behind: it drifts towards the edge, falls out, and the window
-        /// stops answering mid-gesture. Carrying it keeps it at the same place
-        /// in the frame, so the window can be pushed as far as the screen goes.
+        /// Two fingers flick the window to a corner, as in Dia and Arc: a
+        /// swipe up takes it to the top on the side it is on, a swipe left to
+        /// the left at the height it is at, and so on — one move a swipe,
+        /// however long the swipe. Dragging it anywhere is the click's.
+        private var swipe: CGVector = .zero
+        private var flicked = false
+        /// For a wheel, which has no gesture to belong to: one flick a turn.
+        private var lastWheelFlick = Date.distantPast
+
         override func scrollWheel(with event: NSEvent) {
-            guard let window else { return }
-            // Only while fingers are actually down. Letting the glide continue
-            // would fling the pointer across the screen after them.
+            // The glide after the fingers lift is not a second swipe.
             guard event.momentumPhase == [] else { return }
+            // Which way the fingers went, on screen: with natural scrolling
+            // the deltas run with the fingers, without it against them.
+            let sign: CGFloat = event.isDirectionInvertedFromDevice ? 1 : -1
+            let step = CGVector(dx: sign * event.scrollingDeltaX, dy: -sign * event.scrollingDeltaY)
 
-            let dx = event.scrollingDeltaX
-            let dy = event.scrollingDeltaY
-            guard dx != 0 || dy != 0 else { return }
+            if event.phase == [] {
+                // A mouse's wheel: every turn is a flick, a moment apart.
+                guard Date().timeIntervalSince(lastWheelFlick) > 0.4, step != .zero else { return }
+                lastWheelFlick = Date()
+                flick(step)
+                return
+            }
+            if event.phase.contains(.began) {
+                swipe = .zero
+                flicked = false
+            }
+            swipe.dx += step.dx
+            swipe.dy += step.dy
+            // Far enough, and clearly one way, to be a flick and not a touch.
+            if !flicked, max(abs(swipe.dx), abs(swipe.dy)) > 24 {
+                flicked = true
+                flick(swipe)
+            }
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                swipe = .zero
+                flicked = false
+            }
+        }
 
-            let spot = window.frame.origin
-            window.setFrameOrigin(NSPoint(x: spot.x + dx, y: spot.y - dy))
-
-            // Screen coordinates run up from the bottom, the cursor's run down
-            // from the top of the first display.
-            guard let ground = NSScreen.screens.first else { return }
-            let mouse = NSEvent.mouseLocation
-            CGWarpMouseCursorPosition(
-                CGPoint(
-                    x: mouse.x + dx,
-                    y: ground.frame.height - (mouse.y - dy)
-                )
-            )
-            // Without this the pointer and the physical trackpad stay parted
-            // for a moment, and the next flick arrives from the wrong place.
-            CGAssociateMouseAndMouseCursorPosition(1)
+        /// To the corner the swipe points at, along its stronger direction,
+        /// keeping the other: a margin in from the edges of the screen's
+        /// usable part.
+        private func flick(_ way: CGVector) {
+            guard let window, let area = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
+            var frame = window.frame
+            frame.origin = Float.corner(for: frame, in: area, toward: way)
+            guard frame.origin != window.frame.origin else { return }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.28
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1)
+                window.animator().setFrame(frame, display: true)
+            }
         }
 
         /// A pinch sizes it about the pointer: whatever is under your fingers
