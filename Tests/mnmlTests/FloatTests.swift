@@ -25,6 +25,8 @@ final class FloatTests: XCTestCase {
         XCTAssertEqual(mnml.Float.corner(for: at(788, 12), in: area, toward: CGVector(dx: -30, dy: 30)), NSPoint(x: 12, y: 488))
         // Top left, down and to the right at about 35°: bottom right.
         XCTAssertEqual(mnml.Float.corner(for: at(12, 488), in: area, toward: CGVector(dx: 40, dy: -28)), NSPoint(x: 788, y: 12))
+        // About 25° off straight up still counts as diagonal: top left.
+        XCTAssertEqual(mnml.Float.corner(for: at(788, 12), in: area, toward: CGVector(dx: -20, dy: 43)), NSPoint(x: 12, y: 488))
         // Mostly up with a little left (about 15°): only up, on its own side.
         XCTAssertEqual(mnml.Float.corner(for: at(788, 12), in: area, toward: CGVector(dx: -10, dy: 40)), NSPoint(x: 788, y: 488))
     }

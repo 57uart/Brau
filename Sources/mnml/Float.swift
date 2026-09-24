@@ -40,7 +40,7 @@ final class Float {
     var showing: Bool { panel != nil }
 
     /// Where a flick sends the window, a margin in from the edges of
-    /// `area`. A swipe clearly both ways — between about 30° and 60° — takes
+    /// `area`. A swipe clearly both ways — between about 22° and 68° — takes
     /// it to the corner it points at; a straighter one along its stronger
     /// direction, against whichever of the other two edges it is nearer.
     nonisolated static func corner(for frame: NSRect, in area: NSRect, toward way: CGVector, margin: CGFloat = 12) -> NSPoint {
@@ -48,7 +48,7 @@ final class Float {
         let bottom = area.minY + margin, top = area.maxY - margin - frame.height
         let across = abs(way.dx), up = abs(way.dy)
         let x = way.dx > 0 ? right : left, y = way.dy > 0 ? top : bottom
-        if min(across, up) >= 0.58 * max(across, up) { return NSPoint(x: x, y: y) }
+        if min(across, up) >= 0.4 * max(across, up) { return NSPoint(x: x, y: y) }
         if across >= up { return NSPoint(x: x, y: frame.midY > area.midY ? top : bottom) }
         return NSPoint(x: frame.midX > area.midX ? right : left, y: y)
     }
@@ -59,7 +59,9 @@ final class Float {
 
         let size = NSSize(width: 440, height: 247)
         let screen = NSScreen.main?.visibleFrame ?? .zero
-        let spot = NSRect(
+        // Where it was last, at the size it was, if a screen still shows it;
+        // otherwise the bottom right of this one.
+        let spot = Float.remembered ?? NSRect(
             x: screen.maxX - size.width - 24,
             y: screen.minY + 24,
             width: size.width,
@@ -87,6 +89,14 @@ final class Float {
         panel.hasShadow = false
         panel.isReleasedWhenClosed = false
         panel.aspectRatio = size
+        // Kept as it goes, so quitting with it open still comes back to it.
+        keeping = [NSWindow.didMoveNotification, NSWindow.didResizeNotification].map { name in
+            NotificationCenter.default.addObserver(forName: name, object: panel, queue: .main) { [weak panel] _ in
+                MainActor.assumeIsolated {
+                    if let panel { Float.remembered = panel.frame }
+                }
+            }
+        }
         panel.minSize = NSSize(width: 260, height: 146)
 
         let ground = NSView(frame: NSRect(origin: .zero, size: size))
@@ -145,10 +155,30 @@ final class Float {
         }
     }
 
+    /// The window's last place and size, kept across closing it and quitting,
+    /// and given back only while a screen still shows most of it.
+    private static var remembered: NSRect? {
+        get {
+            guard let text = Store.settings.string(forKey: "float.frame") else { return nil }
+            let frame = NSRectFromString(text)
+            let shown = NSScreen.screens.contains {
+                let seen = $0.visibleFrame.intersection(frame)
+                return seen.width * seen.height > 0.6 * frame.width * frame.height
+            }
+            return frame.width > 100 && shown ? frame : nil
+        }
+        set { Store.settings.set(newValue.map(NSStringFromRect), forKey: "float.frame") }
+    }
+
+    private var keeping: [NSObjectProtocol] = []
+
     /// Puts the page down and closes. Whoever owns the page takes it back on
     /// their next layout.
     func drop() {
         guard let panel else { return }
+        Float.remembered = panel.frame
+        keeping.forEach(NotificationCenter.default.removeObserver)
+        keeping = []
         ticker?.invalidate()
         ticker = nil
         (page as? WKWebView)?.allowsMagnification = true
@@ -376,13 +406,16 @@ final class Float {
             }
             swipe.dx += step.dx
             swipe.dy += step.dy
-            // Far enough, and clearly one way, to be a flick and not a touch.
-            // Enough of the swipe to read its angle — straight or diagonal.
-            if !flicked, hypot(swipe.dx, swipe.dy) > 30 {
+            // Read from the whole swipe, as the fingers lift: a swipe often
+            // sets off along one side before it turns diagonal, and read
+            // early it went the wrong way. A long one doesn't wait.
+            let lifted = event.phase.contains(.ended) || event.phase.contains(.cancelled)
+            let length = hypot(swipe.dx, swipe.dy)
+            if !flicked, length > 120 || (lifted && length > 20) {
                 flicked = true
                 flick(swipe)
             }
-            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+            if lifted {
                 swipe = .zero
                 flicked = false
             }
