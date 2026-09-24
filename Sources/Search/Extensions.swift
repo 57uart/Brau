@@ -573,9 +573,16 @@ final class Extensions: NSObject, ObservableObject {
         guard let url = parts.url,
               let (data, _) = try? await URLSession.shared.data(from: url),
               let xml = String(data: data, encoding: .utf8),
-              xml.contains("status=\"ok\""),
-              let version = xml.range(of: #"version="([^"]+)""#, options: .regularExpression)
-                .map({ String(xml[$0].dropFirst(9).dropLast()) }),
+              // The answer is the <updatecheck> element alone: status="ok"
+              // with a version when there is a newer one, "noupdate" when
+              // not. Read across the whole reply, the first version="" is
+              // the XML declaration's "1.0", and status="ok" is on <app>
+              // either way — which took every reply for an update.
+              let check = xml.range(of: #"<updatecheck\b[^>]*>"#, options: .regularExpression)
+                .map({ String(xml[$0]) }),
+              check.contains("status=\"ok\""),
+              let version = check.range(of: #"\bversion="([^"]+)""#, options: .regularExpression)
+                .map({ String(check[$0].dropFirst(9).dropLast()) }),
               version != item.version
         else { return }
         do {
