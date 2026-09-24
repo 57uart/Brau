@@ -256,14 +256,14 @@ final class Tab: ObservableObject, Identifiable {
     var onSearch: ((Tab, String) -> Void)?
     /// "Add to Search" was pressed on the Chrome Web Store page this tab shows.
     var onStoreAdd: ((Tab) -> Void)?
+    /// The middle button was let go over a link. The browser opens it in a
+    /// tab of its own beside this one, without leaving the page you are on.
+    var onMiddleClick: ((Tab, URL) -> Void)?
     /// Sent where this tab's view can't go: from an extension's page to the
     /// web or another extension, or from the web to an extension's page.
     /// WebKit keeps each kind of view to its own pages, so the tab has to be
     /// swapped for one built for the address (see Browser.replace).
     var onCross: ((Tab, URL) -> Void)?
-    /// The middle button was let go over a link. The browser opens it in a
-    /// tab of its own beside this one, without leaving the page you are on.
-    var onMiddleClick: ((Tab, URL) -> Void)?
     /// The extension whose store page has its own "Add to Search" button in
     /// place — so the bar at the bottom of the window doesn't offer it twice.
     @Published var storePlaced: String?
@@ -388,17 +388,17 @@ final class Tab: ObservableObject, Identifiable {
         controller.removeScriptMessageHandler(forName: ImageRelay.name)
         controller.removeScriptMessageHandler(forName: StoreRelay.name)
         controller.removeScriptMessageHandler(forName: PasskeyRelay.name)
-        controller.removeScriptMessageHandler(forName: MiddleRelay.name)
         controller.removeScriptMessageHandler(forName: HoveredLink.name, contentWorld: .defaultClient)
+        controller.removeScriptMessageHandler(forName: MiddleRelay.name)
         controller.add(relay, name: ScrollRelay.name)
         controller.add(veils_, name: VeilRelay.name)
         controller.add(images, name: ImageRelay.name)
         controller.add(shop, name: StoreRelay.name)
         controller.add(forms, name: FormRelay.name)
         controller.addScriptMessageHandler(passkeyRelay, contentWorld: .page, name: PasskeyRelay.name)
-        controller.add(middles, name: MiddleRelay.name)
         hovered.tab = self
         controller.add(hovered, contentWorld: .defaultClient, name: HoveredLink.name)
+        controller.add(middles, name: MiddleRelay.name)
         Shield.shared.protect(controller)
         built = web
         arm(hiding: veils)
@@ -510,11 +510,6 @@ final class Tab: ObservableObject, Identifiable {
                 WKUserScript(source: StoreRelay.script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
             )
         }
-        // The main frame only: a middle-click on a link inside an ad iframe is
-        // that frame's own business, and its link is not this tab's to open.
-        controller.addUserScript(
-            WKUserScript(source: MiddleRelay.watch, injectionTime: .atDocumentStart, forMainFrameOnly: true)
-        )
         // Only while Settings says so: off, pages get nothing at all.
         if HoveredLink.on {
             controller.addUserScript(WKUserScript(
@@ -522,6 +517,11 @@ final class Tab: ObservableObject, Identifiable {
                 forMainFrameOnly: false, in: .defaultClient
             ))
         }
+        // The main frame only: a middle-click on a link inside an ad iframe is
+        // that frame's own business, and its link is not this tab's to open.
+        controller.addUserScript(
+            WKUserScript(source: MiddleRelay.watch, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        )
         if !FormRelay.passkeysOffered {
             controller.addUserScript(
                 WKUserScript(
@@ -998,8 +998,8 @@ final class Tab: ObservableObject, Identifiable {
         controller.removeScriptMessageHandler(forName: ImageRelay.name)
         controller.removeScriptMessageHandler(forName: StoreRelay.name)
         controller.removeScriptMessageHandler(forName: PasskeyRelay.name)
-        controller.removeScriptMessageHandler(forName: MiddleRelay.name)
         controller.removeScriptMessageHandler(forName: HoveredLink.name, contentWorld: .defaultClient)
+        controller.removeScriptMessageHandler(forName: MiddleRelay.name)
         controller.removeAllUserScripts()
         web.onPull = nil
         web.onTouch = nil

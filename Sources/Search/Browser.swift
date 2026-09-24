@@ -1528,11 +1528,11 @@ final class Browser: NSObject, ObservableObject {
             self.open(url, foreground: true, from: tab)
         }
         tab.onStoreAdd = { [weak self] tab in self?.addFromStore(tab) }
-        tab.onCross = { [weak self] tab, url in self?.replace(tab, going: url) }
         // The middle button on a link opens it beside the tab you are on, as
         // it does in every other browser (see MiddleRelay).
         // From a private tab, the new one is private too, as for ⌘-click.
         tab.onMiddleClick = { [weak self] tab, url in self?.open(url, foreground: false, from: tab) }
+        tab.onCross = { [weak self] tab, url in self?.replace(tab, going: url) }
 
         // The caret in a sign-in box: the accounts kept for this site hang
         // from the box, and go when the caret does. Nothing is filled on
