@@ -1936,12 +1936,54 @@ enum ExtensionShims {
         var errorDescription: String? { what }
     }
 
+    /// The families whose answers leave the extension's own origin: what the
+    /// browser knows about the person using it. WebKit keeps no permission
+    /// object for them, they are the APIs this shim exists to supply, so the
+    /// gate reads the names the extension's own manifest asked for.
+    /// `tabs.describe` is the one call inside a family WebKit does own where
+    /// the permission guards reading a tab rather than moving or selecting
+    /// it.
+    private static let gates: [String: String] = [
+        "tabs.describe": "tabs",
+        "bookmarks": "bookmarks",
+        "history": "history",
+        "downloads": "downloads",
+        "sessions": "sessions",
+        "topSites": "topSites",
+        "browsingData": "browsingData",
+        "readingList": "readingList",
+    ]
+
+    /// What this extension asked for: the names in its manifest and any
+    /// optional ones granted since. The checks inside the shim are a
+    /// courtesy to honest code, the shim runs beside the extension's own,
+    /// so the one that counts is here.
+    private static func allowed(_ id: String) -> Set<String> {
+        var names = Store.settings.stringArray(forKey: "extensions.granted.\(id)") ?? []
+        let manifest = Extensions.folder(for: id).appendingPathComponent("manifest.json")
+        if let data = try? Data(contentsOf: manifest),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let asked = json["permissions"] as? [Any] {
+            names += asked.compactMap { $0 as? String }
+        }
+        return Set(names)
+    }
+
     private static func run(_ api: String, _ args: [Any], context: WKWebExtensionContext, owner: Extensions) async throws -> Any? {
         guard let browser = owner.browser else { throw Unsupported(what: "No browser window") }
         let first = args.first
         let id = context.uniqueIdentifier
 
         if api.hasPrefix("setting.") { return setting(api, first as? [String: Any] ?? [:], extension: id, owner: owner) }
+
+        // What leaves this app is answered here, not in the injected script:
+        // the shim runs beside the extension's own code, so its checks stop
+        // only the honest. A family this extension never asked for is an
+        // error, the way Chrome answers a call to an API it lacks.
+        if let needed = gates[api] ?? gates[String(api.prefix(while: { $0 != "." }))],
+           !allowed(id).contains(needed) {
+            throw Unsupported(what: "The extension never asked for \u{201C}\(needed)\u{201D}")
+        }
 
         switch api {
         // MARK: bookmarks
