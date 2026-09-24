@@ -58,6 +58,50 @@ final class Bench {
         }
     }
 
+    // MARK: - who switched it on
+
+    /// Whether the bench was switched on in Settings, by you. The setting
+    /// itself lives in the defaults, which any program you run can write; on
+    /// its own it opens nothing. The switch also leaves a mark in the
+    /// keychain — its data protection half, where only apps signed as Search
+    /// with its profile can read or write, under the app's own access group —
+    /// and without the mark the setting is put back to off at launch, with a
+    /// word about it. Test runs keep the setting alone: their worlds hold
+    /// nothing of yours, and scripts set them up with a defaults write.
+    @MainActor
+    enum Consent {
+        private static var query: [String: Any] {
+            [kSecClass as String: kSecClassGenericPassword,
+             kSecUseDataProtectionKeychain as String: true,
+             kSecAttrService as String: "com.officecommun.search.bench",
+             kSecAttrAccount as String: Store.world.map { "consent (\($0))" } ?? "consent"]
+        }
+
+        /// The mark is there — or there is nowhere to keep one: a copy built
+        /// without Search's provisioning profile has no access group, and
+        /// keeps the switch as it always was.
+        static var given: Bool {
+            var asked = query
+            asked[kSecReturnAttributes as String] = true
+            let status = SecItemCopyMatching(asked as CFDictionary, nil)
+            return status == errSecSuccess || status == errSecMissingEntitlement
+        }
+
+        static func grant() {
+            var item = query
+            item[kSecValueData as String] = Data("on".utf8)
+            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            let status = SecItemAdd(item as CFDictionary, nil)
+            if status != errSecSuccess, status != errSecDuplicateItem, status != errSecMissingEntitlement {
+                NSLog("Bench: the switch left no mark (%d)", status)
+            }
+        }
+
+        static func revoke() {
+            SecItemDelete(query as CFDictionary)
+        }
+    }
+
     // MARK: - starting and stopping
 
     func start(for browser: Browser) {
@@ -1052,6 +1096,18 @@ final class Bench {
                 window.contentView = nil
             }
 
+        case "consent":
+            // The mark the Settings switch leaves (see Consent), in this test
+            // world's own account: given, then granted or revoked if asked.
+            guard Store.testing else { answer(["error": "consent only works on a --test run"]); return }
+            let before = Consent.given
+            switch request["action"] as? String {
+            case "grant": Consent.grant()
+            case "revoke": Consent.revoke()
+            default: break
+            }
+            answer(["before": before, "after": Consent.given])
+
         case "fold":
             // The strip or the column as it comes out over the page once
             // folded (see Fold.swift), drawn off screen over red: whatever of
@@ -1230,7 +1286,7 @@ final class Bench {
 
         default:
             answer(["error": "unknown command “\(verb)”", "commands": [
-                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "pull", "space", "strip", "column", "fold", "site", "ui",
+                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "pull", "space", "strip", "column", "fold", "consent", "site", "ui",
             ]])
         }
     }

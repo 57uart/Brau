@@ -731,7 +731,11 @@ final class Browser: NSObject, ObservableObject {
         Shield.shared.enabled = prefs.shielded
         Shield.shared.compile()
         if #available(macOS 15.4, *) { Extensions.shared.start(for: self) }
-        if prefs.bench { Bench.shared.start(for: self) }
+        if prefs.bench {
+            Bench.shared.start(for: self)
+        } else if prefs.benchRefused {
+            announce("“Let a script drive Search” was turned on outside Settings, and stays off")
+        }
         welcoming = !prefs.welcomed
         // Asked to stay out of the way: it starts that way (see Fold.swift).
         folded = prefs.sidebar && prefs.sideHides
