@@ -150,6 +150,11 @@ final class Preferences: ObservableObject {
     @Published var peeksLinks: Bool {
         didSet { store.set(peeksLinks, forKey: "links.peek") }
     }
+    /// The bookmarks bar above the page (see BookmarksBar.swift). Off
+    /// unless asked for.
+    @Published var bookmarksBar: Bool {
+        didSet { store.set(bookmarksBar, forKey: "bookmarks.bar") }
+    }
     @Published var showsLinks: Bool {
         didSet {
             store.set(showsLinks, forKey: "links.show")
@@ -242,6 +247,7 @@ final class Preferences: ObservableObject {
         floatsAway = store.bool(forKey: "float.away")
         floatsOnLeave = store.object(forKey: "float.leave") as? Bool ?? true
         peeksLinks = store.bool(forKey: "links.peek")
+        bookmarksBar = store.bool(forKey: "bookmarks.bar")
         let links = store.bool(forKey: "links.show")
         showsLinks = links
         HoveredLink.on = links

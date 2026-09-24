@@ -13,6 +13,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Added
 
+- A bookmarks bar, as in Chrome and Safari: your bookmarks in a row above the page, folders opening as menus. Off unless turned on, in Settings › Tabs › Show the bookmarks bar or Bookmarks › Show Bookmarks Bar; it folds away with the tabs.
 - Peek at a link, as in Arc: shift-click it and its page opens in a panel over the one you are reading. Escape, ⌘W or a click beside it puts it away; its other button keeps it as a tab beside this one, without loading it again. Off unless turned on: Settings › General › Peek at a link with a shift-click. Thanks [@beyondbriks](https://x.com/beyondbriks) for the idea
 - The video that comes out into its floating window when you leave its tab (YouTube and the like) can be kept in its tab: Settings › General › Float the video when you switch tabs, on as before. ⇧⌘P still floats one by hand. Thanks [@mihsanbudiman](https://x.com/mihsanbudiman) for asking
 - The site you are on, in a card: click the tab you are on to change its address, and a card comes up under it with whether the connection is private (a step in shows the certificate), Copy Address, Print and the page's zoom. It goes as soon as you type. Right-click a tab › Site Information… opens it too. In the column and in the bar across the top alike, with nothing added to either. The card is from [@kndpt](https://github.com/kndpt)'s address bar ([#56](https://github.com/driceroland/Search/pull/56)), which stayed out: Search has the column or the bar, never a second row over the page.
