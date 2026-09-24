@@ -370,12 +370,18 @@ struct ContentView: View {
                 browser.tabSwitcher.cancel()
                 measureLights()
                 resting?.isHidden = false
+                // Only the window you were in, or every window's video would come.
+                browser.appLeft()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+                if let window, (note.object as? NSWindow) === window { Browser.front = browser }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
                 if let window, (note.object as? NSWindow) === window { browser.tabSwitcher.cancel() }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 resting?.isHidden = true
+                browser.appBack()
             }
             .onChange(of: browser.fieldShowing) { _, showing in
                 if showing {
