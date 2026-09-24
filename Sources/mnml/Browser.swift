@@ -1070,6 +1070,13 @@ final class Browser: NSObject, ObservableObject {
     // MARK: - tabs
 
     func newTab() {
+        // On a private tab, a new one is private too: ⌘T from a page that
+        // keeps nothing and landing on one that keeps everything is how a
+        // private search ends up in the history.
+        if active?.shy == true {
+            newShyTab()
+            return
+        }
         // An extension's new tab page, if one asked and you said yes.
         if #available(macOS 15.4, *), let page = Extensions.shared.newTabPage {
             open(page, foreground: true)
@@ -1289,12 +1296,20 @@ final class Browser: NSObject, ObservableObject {
     /// A link opened from a page lands next to the page it came from, not at
     /// the far end of the row — unless it is one of a batch, which keeps the
     /// order it came in.
+    ///
+    /// `from`: the tab it was opened out of. A private one's opens private,
+    /// in the same store, as a link that asks for a new window already does.
     @discardableResult
-    func open(_ url: URL, foreground: Bool, atEnd: Bool = false) -> Tab {
+    func open(_ url: URL, foreground: Bool, atEnd: Bool = false, from source: Tab? = nil) -> Tab {
         // An extension's own page is served only to a view built from that
         // extension's configuration.
         let url = Browser.page(url)
-        let tab = Tab(configuration: Browser.extensionConfiguration(for: url))
+        let page = Browser.extensionConfiguration(for: url)
+        let tab = if let source, source.shy, page == nil {
+            Tab(shy: true, configuration: Web.configuration(shy: true, store: source.store))
+        } else {
+            Tab(configuration: page)
+        }
         prepare(tab)
         let here = atEnd ? nil : tabs.firstIndex { $0.id == activeID }
         // Opened beside a tab in a group, it is one of the group's too.
@@ -1377,7 +1392,7 @@ final class Browser: NSObject, ObservableObject {
             editing = false
             typed = ""
         } else {
-            open(url, foreground: true)
+            open(url, foreground: true, from: active)
         }
     }
 
@@ -1421,7 +1436,7 @@ final class Browser: NSObject, ObservableObject {
     /// ⌘D. The same page, beside itself.
     func duplicate() {
         guard let url = active?.address else { return }
-        open(url, foreground: true)
+        open(url, foreground: true, from: active)
     }
 
     /// ⌘⇧V. What is in the clipboard, if it is a place — or a search.
@@ -1912,7 +1927,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
            ["http", "https"].contains(scheme) {
             let flags = action.modifierFlags
             if flags.contains(.command) || action.buttonNumber == 2 {
-                let opened = open(url, foreground: flags.contains(.shift))
+                let opened = open(url, foreground: flags.contains(.shift), from: tab(for: webView))
                 // With Settings › Tabs › Group links you ⌘-click: the page
                 // and the link, as a group named for the page's site. A page
                 // already in a group has the link join it (see open).

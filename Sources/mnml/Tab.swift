@@ -28,14 +28,16 @@ enum Web {
 
     /// `space`: the space the tab belongs to, when it is not the one on
     /// screen — a parked row made ahead of time (see Spaces.swift).
-    static func configuration(shy: Bool = false, space: UUID? = nil) -> WKWebViewConfiguration {
+    /// `store`: a shy tab's own, for one opened from it — a link followed
+    /// out of a private page is still signed in to whatever that page was.
+    static func configuration(shy: Bool = false, space: UUID? = nil, store: WKWebsiteDataStore? = nil) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         // The real store, not the ephemeral one: staying signed in between
         // launches is the difference between a browser and a preview pane. A
         // shy tab gets its own store, which exists only while it does — its own
         // cookies, its own sign-ins, and nothing left behind when it closes.
         // With spaces on, each space's tabs share a store of that space's.
-        config.websiteDataStore = shy ? .nonPersistent() : MainActor.assumeIsolated { Spaces.store(for: space ?? Spaces.current) }
+        config.websiteDataStore = store ?? (shy ? .nonPersistent() : MainActor.assumeIsolated { Spaces.store(for: space ?? Spaces.current) })
         config.processPool = Web.pool
         // Chrome extensions see every page but a private one, unless Settings
         // › Extensions says they may. The controller has to be there when the
@@ -109,6 +111,8 @@ final class Tab: ObservableObject, Identifiable {
     /// there as it was made (a controller can't be added to a page later).
     @available(macOS 15.4, *)
     var carriesExtensions: Bool { configuration.webExtensionController != nil }
+    /// Where its cookies and sign-ins are kept.
+    var store: WKWebsiteDataStore { configuration.websiteDataStore }
     /// Whoever handles navigation and windows for this page; applied when
     /// the page is built, whenever that is.
     weak var delegate: (WKNavigationDelegate & WKUIDelegate)? {
