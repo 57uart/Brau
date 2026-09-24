@@ -116,14 +116,22 @@ enum Vault {
               let data = password.data(using: .utf8)
         else { return false }
 
+        // Ours only. Server and account alone also match what other apps
+        // keep for the same site — git's token for github.com under your
+        // username — and an update would write this password over it.
         let identity: [String: Any] = [
             kSecClass as String: kSecClassInternetPassword,
             kSecAttrServer as String: host,
             kSecAttrAccount as String: user,
+            kSecAttrLabel as String: label,
         ]
+        // A web form's, which also keeps ours apart from another app's item
+        // in the keychain's eyes: one for the same server, account and
+        // protocol — git's — makes adding ours fail as a duplicate.
         var fields: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrLabel as String: label,
+            kSecAttrAuthenticationType as String: kSecAttrAuthenticationTypeHTMLForm,
         ]
         if let used { fields[kSecAttrComment as String] = String(used.timeIntervalSince1970) }
 
@@ -146,6 +154,7 @@ enum Vault {
             kSecClass as String: kSecClassInternetPassword,
             kSecAttrServer as String: host,
             kSecAttrAccount as String: user,
+            kSecAttrLabel as String: label,
         ] as CFDictionary)
     }
 
