@@ -343,33 +343,63 @@ final class Extensions: NSObject, ObservableObject {
     /// in developer mode. One loaded from a folder is copied in afresh from
     /// that folder first, so what its author just saved is what runs.
     func reload(_ id: String) {
-        guard let index = installed.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = installed.firstIndex(where: { $0.id == id }), reloading.insert(id).inserted else { return }
         let target = Extensions.folder(for: id)
+        let files = FileManager.default
+        var staged: URL?
         if let path = installed[index].source {
             let source = URL(fileURLWithPath: path, isDirectory: true)
-            let files = FileManager.default
             guard files.fileExists(atPath: source.appendingPathComponent("manifest.json").path) else {
+                reloading.remove(id)
                 browser?.announce("The folder \(installed[index].name) was loaded from is gone")
                 return
             }
-            let staged = Extensions.folder.appendingPathComponent(".staging-\(id)", isDirectory: true)
+            let copy = Extensions.folder.appendingPathComponent(".staging-\(id)", isDirectory: true)
             do {
-                try? files.removeItem(at: staged)
-                try files.copyItem(at: source, to: staged)
-                try ExtensionShims.prepare(staged, fresh: true)
-                try? files.removeItem(at: target)
-                try files.moveItem(at: staged, to: target)
+                try? files.removeItem(at: copy)
+                try files.copyItem(at: source, to: copy)
+                try ExtensionShims.prepare(copy, fresh: true)
             } catch {
-                try? files.removeItem(at: staged)
+                try? files.removeItem(at: copy)
+                reloading.remove(id)
                 browser?.announce("Couldn't copy \(installed[index].name) again")
                 return
             }
+            staged = copy
         }
-        unload(id)
-        errors[id] = nil
         Task {
-            if let found = try? await WKWebExtension(resourceBaseURL: target),
-               let index = installed.firstIndex(where: { $0.id == id }) {
+            defer { reloading.remove(id) }
+            guard let item = installed.first(where: { $0.id == id }) else { return }
+            let found = try? await WKWebExtension(resourceBaseURL: staged ?? target)
+            if found == nil, let staged {
+                try? files.removeItem(at: staged)
+                browser?.announce("\(item.name) wasn't reloaded — its manifest couldn't be read")
+                return
+            }
+            if let found {
+                let wants = Set(Extensions.grants(found, in: staged ?? target))
+                if !wants.isSubset(of: Set(item.permissions)) {
+                    let name = [found.displayName ?? item.name, found.version].compactMap { $0 }.joined(separator: " ")
+                    guard await ask(install: name, wants: Extensions.describe(found, in: staged ?? target), icon: found.icon(for: CGSize(width: 64, height: 64))) else {
+                        if let staged { try? files.removeItem(at: staged) }
+                        browser?.announce("\(item.name) wasn't reloaded — it asks for more than before")
+                        return
+                    }
+                }
+            }
+            unload(id)
+            errors[id] = nil
+            if let staged {
+                do {
+                    try? files.removeItem(at: target)
+                    try files.moveItem(at: staged, to: target)
+                } catch {
+                    try? files.removeItem(at: staged)
+                    browser?.announce("Couldn't copy \(item.name) again")
+                    return
+                }
+            }
+            if let found, let index = installed.firstIndex(where: { $0.id == id }) {
                 installed[index].name = found.displayName ?? installed[index].name
                 installed[index].version = found.version ?? installed[index].version
                 installed[index].permissions = Extensions.grants(found, in: target)
@@ -384,6 +414,7 @@ final class Extensions: NSObject, ObservableObject {
     /// as a relaunch would — at most once a minute, so one that can never
     /// start doesn't go round in circles.
     private var revived: [String: Date] = [:]
+    private var reloading: Set<String> = []
     /// Recent failed native messages, per extension and host.
     private var failures: [String: [Date]] = [:]
 
