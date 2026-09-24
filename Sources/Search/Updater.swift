@@ -80,6 +80,9 @@ final class Updater: ObservableObject {
         /// Couldn't be swapped in from here, so the disk image is offered
         /// instead — the same as the first time.
         case offered(Release)
+        /// Found, and waiting to be asked for: installing on its own is
+        /// switched off in Settings.
+        case waiting(Release)
     }
 
     @Published private(set) var stage: Stage = .none
@@ -99,6 +102,9 @@ final class Updater: ObservableObject {
     }
 
     private var lastKey: String { "update.checked" }
+    nonisolated static let installKey = "update.install"
+    /// Settings › About › Install updates on its own. On unless switched off.
+    private var installsOnItsOwn: Bool { Store.settings.object(forKey: Updater.installKey) as? Bool ?? true }
     /// Where a line goes when there is one to say, handed over at launch.
     private var say: ((String) -> Void)?
 
@@ -154,8 +160,22 @@ final class Updater: ObservableObject {
                 return
             }
             done(found)
-            take(found)
+            guard !installsOnItsOwn else { take(found); return }
+            switch stage {
+            case .fetching, .ready: break
+            case .waiting(let known) where known == found: break
+            case .none, .offered, .waiting:
+                stage = .waiting(found)
+                say?("Search \(found.version) is out — it's in Settings")
+            }
         }
+    }
+
+    /// Install, because somebody pressed it: the same fetch, checks and swap
+    /// as on its own.
+    func install() {
+        guard case .waiting(let release) = stage else { return }
+        take(release)
     }
 
     /// Fetch it, check it, swap it in — unless one is already on its way,
@@ -165,7 +185,7 @@ final class Updater: ObservableObject {
     private func take(_ release: Release) {
         switch stage {
         case .fetching, .ready: return
-        case .none, .offered: break
+        case .none, .offered, .waiting: break
         }
         stage = .fetching(release)
         Task.detached(priority: .utility) {

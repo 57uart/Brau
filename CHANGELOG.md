@@ -13,6 +13,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Added
 
+- Updates can wait for you: Settings › About › Install updates on its own, on as before. Switched off, Search still looks once a day and says when a newer version is out, and fetches, checks and installs it only when you press Install.
 ### Fixed
 
 - An extension from the Chrome Web Store is fetched again only when the store has a newer version. The daily check read the first `version=""` in the store's reply, which is the XML declaration's "1.0", so every extension counted as out of date: each was downloaded again (uBlock Origin Lite is nearly 10 MB), unloaded and reloaded about once a day, and a password manager signed out with it. Thanks [@burakbuilds](https://github.com/burakbuilds) ([#201](https://github.com/driceroland/Search/pull/201))
