@@ -434,9 +434,10 @@ final class Tab: ObservableObject, Identifiable {
         web.navigationDelegate = delegate
         web.uiDelegate = delegate
 
-        // A tab opened by a link inherits its opener's configuration, handlers
-        // included, so each name is cleared before being claimed — registering
-        // one twice is a hard crash rather than an error.
+        // Each name is cleared before being claimed — registering one twice is
+        // a hard crash rather than an error. A tab opened by a link gets a
+        // controller of its own (Browser's createWebViewWith), never its
+        // opener's.
         let controller = web.configuration.userContentController
         Web.release(controller)
         controller.add(relay, contentWorld: Web.world, name: ScrollRelay.name)

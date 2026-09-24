@@ -36,6 +36,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Fixed
 
+- Right-click on a picture works again in a tab you had followed a link out of: closing or putting to sleep the tab the link opened took Search's page scripts away from the first one, so the right-click menu on an image (X's photos, for one) showed nothing at all, and saved passwords, the swipe back and hidden elements stopped answering there too.
 - The back and forward buttons of a Logitech mouse set up in Logi Options+ (an MX Master among them) navigate the page: Options+ sends them as a swipe, not as mouse buttons, and Search only listened for the buttons. Thanks [@ductan2](https://github.com/ductan2) ([#169](https://github.com/driceroland/Search/pull/169))
 - Pages no longer see anything of Search that Safari doesn't show them. They could see the messages Search's own scripts send to the app (`window.webkit`, which Safari never exposes) and the variables those scripts kept: the mark of an app's embedded web view rather than a browser, which Google answered with a CAPTCHA every few searches, and some sign-ins with "This browser or app may not be secure". Search's scripts now run in a world of their own beside the page, out of its sight; 1.0.1 also claimed Safari 26.5 on every Mac, where it now names the Safari the Mac has. ([#26](https://github.com/driceroland/Search/issues/26))
 - Going back or forward with two fingers on the trackpad takes a shorter swipe (70 points instead of 110), and a quick flick is enough, as in Safari. Thanks [@mihsanbudiman](https://x.com/mihsanbudiman) for the report

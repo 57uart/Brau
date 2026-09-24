@@ -1945,6 +1945,13 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         let from = tab(for: webView)?.id ?? activeID
+        // WebKit's copy of the opener's configuration still holds the
+        // opener's user content controller — its scripts and its message
+        // handlers. Shared, the new tab claimed the opener's handlers as its
+        // own, and closing or sleeping it took them off the opener's page:
+        // right-click on a picture on X, after following a link out of it,
+        // did nothing at all. Each tab gets a controller of its own.
+        configuration.userContentController = WKUserContentController()
         let tab = Tab(shy: tab(for: webView)?.shy ?? false, configuration: configuration)
         adopt(tab)
         tab.opener = from
