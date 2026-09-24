@@ -371,6 +371,18 @@ enum ExtensionShims {
         try { return chrome.extension && typeof chrome.extension.getBackgroundPage === "function" && chrome.extension.getBackgroundPage() === root; }
         catch (e) { return false; }
       })());
+      // A Copy button in an extension's own page — a popup, its menu in a
+      // login field — is refused by WebKit once the click is over, and
+      // 1Password's asks its worker first, so its click always is. mnml
+      // writes the text itself instead, as Chrome would have.
+      if (!inContent && !worker && typeof navigator !== "undefined" && navigator.clipboard) {
+        try {
+          Object.defineProperty(navigator.clipboard, "writeText", {
+            configurable: true,
+            value: (text) => native("clipboard.writeText", [String(text)]).then(() => undefined),
+          });
+        } catch (e) {}
+      }
       // WebKit runs an extension's worker on its process's main thread, and
       // `new WebSocket()` there waits for the main thread — itself — for
       // ever: the worker freezes mid-task and WebKit can't start another in
@@ -868,6 +880,17 @@ enum ExtensionShims {
         checkWorker = page ? check : () => {};
         put(runtime, "sendMessage", (...args) => {
           const callback = typeof args[args.length - 1] === "function" ? args.pop() : null;
+          // 1Password's worker, told to copy a field, sends the text out for
+          // one of its pages to write — its popup, if that is still up to
+          // hear it and still allowed to. mnml writes it here instead, the
+          // moment the worker says it.
+          const asked = args[0];
+          if (worker && asked && asked.name === "copy-to-clipboard-in-content-script"
+              && asked.data && typeof asked.data.textToCopy === "string") {
+            const copied = native("clipboard.writeText", [asked.data.textToCopy])
+              .then(() => ({ type: "Success" }), () => ({ type: "Error" }));
+            return replied(copied, callback, "The message port closed before a response was received.");
+          }
           // Never heard back by the one that sends it, so said for it.
           if (!inContent) tell(typeof args[0] === "string" && args.length > 1 && typeof args[1] !== "function" ? args[1] : args[0], "passes");
           checkWorker();
@@ -2535,6 +2558,17 @@ enum ExtensionShims {
             return nil
         case "offscreen.hasDocument":
             return offscreen[id] != nil
+
+        // MARK: clipboard — an extension page's Copy, written here (see the shim)
+        case "clipboard.writeText":
+            guard let text = first as? String else { throw Unsupported(what: "Nothing to copy") }
+            // This Mac only, and marked for clipboard managers to keep out of
+            // their history: what password managers copy is secrets.
+            let board = NSPasteboard.general
+            board.prepareForNewContents(with: .currentHostOnly)
+            board.setString(text, forType: .string)
+            board.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+            return nil
 
         // MARK: fonts — what the Mac has; the page's own fonts stay the page's
         case "fontSettings.getFontList":
