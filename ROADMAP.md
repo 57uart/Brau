@@ -35,32 +35,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
   security report sent privately never comes here, not even in outline: it
   is fixed, it ships, and only then is it credited in CHANGELOG.md.
 
-## Being built now
-
-- [ ] **Links from other apps skip the pins** A link opened from another app never lands among the pins. *([#219](https://github.com/driceroland/Search/issues/219))*
-
-## Done, in the next version
-
-- [x] **Media pauses when switching spaces** Music or a video playing in one space stops when you switch to another. *([#74](https://github.com/driceroland/Search/issues/74))*
-- [x] **History is slow** History is slow to open, stutters as it scrolls, and Escape doesn't close it. *([#67](https://github.com/driceroland/Search/issues/67))*
-- [x] **Web Inspector blanks the page** With the Web Inspector open, resizing the window turns the page blank. *([#91](https://github.com/driceroland/Search/issues/91))*
-- [x] **Mouse wheel stuck on some pages** A mouse wheel doesn't scroll a page that listens to the wheel itself. A fix is waiting in [#194](https://github.com/driceroland/Search/pull/194). *([#180](https://github.com/driceroland/Search/issues/180), [#194](https://github.com/driceroland/Search/pull/194))*
-- [x] **Full-screen video goes black** A video put full screen goes black. A fix is waiting in [#220](https://github.com/driceroland/Search/pull/220). *([#220](https://github.com/driceroland/Search/pull/220))*
-- [x] **Toolbar buttons too tight** The back, forward and reload buttons sit edge to edge. A fix is waiting in [#209](https://github.com/driceroland/Search/pull/209). *([#185](https://github.com/driceroland/Search/issues/185), [#209](https://github.com/driceroland/Search/pull/209))*
-- [x] **History keeps each video apart** History keeps different articles and videos from the same site apart. *([#154](https://github.com/driceroland/Search/pull/154))*
-- [x] **⌘W stops bouncing between pins** A pin already put down stays down. *([#125](https://github.com/driceroland/Search/pull/125))*
-- [x] **Local certificates, trusted only here** A certificate is taken on trust only for this Mac itself. On main already; the pull request closes, with thanks, when it ships. *([#165](https://github.com/driceroland/Search/pull/165), [#133](https://github.com/driceroland/Search/issues/133))*
-- [x] **User scripts stay in their package** A user script's file is read from the extension's own package. On main already; the pull request closes, with thanks, when it ships. *([#198](https://github.com/driceroland/Search/pull/198))*
-- [x] **Copying a password asks first** Copy in Passwords asks who you are first, as Show does. On main already; the pull request closes, with thanks, when it ships. *([#203](https://github.com/driceroland/Search/pull/203))*
-- [x] **Links to other apps ask first** On main already; the pull request closes, with thanks, when it ships. *([#206](https://github.com/driceroland/Search/pull/206))*
-- [x] **Extension reloads ask for new access** Reloading an extension loaded from a folder asks before it gets more access, and keeps the old version on no. *([#135](https://github.com/driceroland/Search/issues/135), [#161](https://github.com/driceroland/Search/pull/161))*
-- [x] **Extension update check** The update check reads the version from the right place. *([#201](https://github.com/driceroland/Search/pull/201))*
-- [x] **Passwords keep to Search's own** Passwords asks the keychain only about Search's own items. [#205](https://github.com/driceroland/Search/pull/205) builds on it: an http page is offered only what was kept from http. *([#208](https://github.com/driceroland/Search/pull/208), [#205](https://github.com/driceroland/Search/pull/205))*
-- [x] **Pop-ups need a click** *([#207](https://github.com/driceroland/Search/pull/207))*
-- [x] **Folded tab bar gets its own ground** The tab bar folded away with ⌘S comes back on a ground of its own: the page no longer shows through between the tabs.
-- [x] **Install updates by hand** Settings › About › Install updates on its own, on by default. Off, Search still says when a version is out and installs it when you press Install. *(email)*
-- [x] **Bitwarden with a self-hosted server** Signing in from the extension to a self-hosted Bitwarden server says the user doesn't exist, while the same address works in a tab. To fix before 1.0.3. *(X)*
-
 ## Now — fixes for the next update
 
 - [ ] **Bitwarden goes blank after sign-in** For one person it doesn't load at all. Before signing in it works — popup, WebAssembly, background. Probably fixed by 1Password's worker fix ([#126](https://github.com/driceroland/Search/pull/126)) and the extension storage fix in 1.0.2; needs a real account to confirm. Also asked: a self-hosted Vaultwarden server behind the extension. *(X, email)*
@@ -126,7 +100,9 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 ## Pull requests to review
 
 - [ ] **Search doesn't come to the front** When another app, like Mail, opens a link in Search, its window stays behind. *([#95](https://github.com/driceroland/Search/issues/95))*
+- [ ] **Links from other apps skip the pins** A link opened from another app never lands among the pins. *([#219](https://github.com/driceroland/Search/issues/219))*
 - [ ] **Smoother mouse-wheel scrolling** Smoother scrolling with a mouse wheel. To look into. *(X)*
+- [ ] **Little window for outside links** A little window for links opened from other apps, and a shortcut to open it from anywhere. *(X, [#227](https://github.com/driceroland/Search/pull/227))*
 
 ## Drice's call
 
@@ -140,7 +116,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Sidebar on the right** The sidebar on the right. *(email)*
 - [ ] **Toolbar buttons on the left** Back, forward and reload on the left with the tabs across the top. *(email)*
 - [ ] **Autocomplete in a new tab** What exactly was asked, to find out. *(X)*
-- [ ] **Little window for outside links** A little window for links opened from other apps, and a shortcut to open it from anywhere. *(X, [#227](https://github.com/driceroland/Search/pull/227))*
 - [ ] **⌃Tab in recent-use order** ⌃Tab goes to the tab used last in this space, not the neighbour in the row; holding it walks back through them. Also asks for its own shortcut recorders in Settings › Tabs. *([#225](https://github.com/driceroland/Search/pull/225))*
 - [ ] **Dock the floating video at the side** Swipe the floating video into the side of the screen and it tucks away, leaving a sliver to bring it back by, as in Dia. *([#229](https://github.com/driceroland/Search/pull/229))*
 
