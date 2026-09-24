@@ -226,7 +226,7 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.groupsLinks)
             }
             Rule()
-            Line("Feel tabs as you drag them", "A light tap of the trackpad as a tab passes another, a firmer one into or out of a group. Force Touch trackpads only.") {
+            Line("Feel tabs as you drag them", "A tap of the trackpad as a tab passes another, a double one into or out of a group. Force Touch trackpads only.") {
                 Switch(on: $prefs.dragHaptics)
             }
             Rule()
