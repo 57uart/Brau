@@ -26,6 +26,7 @@ in [ROADMAP.md](ROADMAP.md).
 - A page opens a new tab of its own only from a click or a key, as in Safari. WebKit on the Mac lets a page call `window.open` whenever it likes, and Search took you to each one: a page could open tabs on load or on a timer and pull you away from the one you were reading. A sign-in or share window opened by its button opens as before. Thanks [@burakbuilds](https://github.com/burakbuilds) ([#207](https://github.com/driceroland/Search/pull/207))
 - An extension loaded from a folder asks again when Reload finds it wants more than you agreed to, the same question an update already asks, and keeps the version you had if you say no; Reload used to take the new access without asking. Thanks [@karadoganyi](https://github.com/karadoganyi) ([#161](https://github.com/driceroland/Search/pull/161)), and [@Hyp4tia](https://github.com/Hyp4tia) for the report ([#135](https://github.com/driceroland/Search/issues/135))
 - The tab bar folded away with ⌘S comes back over the page on a ground of its own, as the column does: the page no longer shows through between the tabs, and its shadow falls along the bar's edge instead of from every title and icon.
+- ⌘W no longer bounces between two pins: with only pins open, putting down the last one awake leaves an empty tab instead of waking the other again. Thanks [@armin-ahmadii](https://github.com/armin-ahmadii) ([#125](https://github.com/driceroland/Search/pull/125))
 
 ## 1.0.2 — 24 September 2026
 
