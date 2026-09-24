@@ -865,11 +865,6 @@ struct SideRow: View {
     /// Something laid over the end of the title: the cross, the ring, the speaker.
     private var marked: Bool { hovering || tab.loading || tab.noisy }
 
-    /// The ring or the speaker, which stay for as long as the page loads or
-    /// plays and so keep a place of their own at the end of the row. The
-    /// cross is only there under the pointer, and takes none.
-    private var status: Bool { !editing && (tab.loading || tab.noisy) }
-
     var body: some View {
         HStack(spacing: 8) {
             if editing {
@@ -949,8 +944,10 @@ struct SideRow: View {
                 .animation(Motion.quick, value: tab.noisy)
             }
         }
-        .animation(Motion.quick, value: tab.loading)
-        .animation(Motion.quick, value: tab.noisy)
+        .padding(.leading, 10)
+        .padding(.trailing, editing ? 10 : 7)
+        .frame(height: 28)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background { ground }
         .modifier(Shake(travel: shake))
         .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
