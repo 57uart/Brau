@@ -237,6 +237,9 @@ def main(argv):
     elif verb == "keyeq":
         if len(args) < 2 or any(a != "shift" for a in args[2:]): sys.exit("usage: bench keyeq CHARS CODE [shift]")
         request["chars"], request["code"], request["mods"] = args[0], int(args[1]), args[2:]
+    elif verb == "fullscreen":
+        if args not in ([], ["on"], ["off"]): sys.exit("usage: bench fullscreen [on|off]")
+        if args: request["on"] = args[0] == "on"
     elif verb == "window":
         pass
     elif verb == "pages":

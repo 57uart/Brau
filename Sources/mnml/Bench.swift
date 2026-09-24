@@ -776,6 +776,17 @@ final class Bench {
             browser.move(tab, to: to)
             answer(["at": browser.tabs.firstIndex { $0.id == tab.id } ?? -1])
 
+        case "fullscreen":
+            // In or out of full screen, from inside: a test copy's full
+            // screen can't be reached from outside while another app is in
+            // front, and one quit while in it leaves an empty space behind.
+            guard Store.testing, let window = Links.window else { answer(["error": "fullscreen only works on a --test run"]); return }
+            let want = request["on"] as? Bool ?? !window.styleMask.contains(.fullScreen)
+            if want != window.styleMask.contains(.fullScreen) { window.toggleFullScreen(nil) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                answer(["fullscreen": window.styleMask.contains(.fullScreen)])
+            }
+
         case "window":
             // The browser's window, when a probe started hidden came up
             // without one: the Window menu's own item for it.
@@ -1237,7 +1248,7 @@ final class Bench {
 
         default:
             answer(["error": "unknown command “\(verb)”", "commands": [
-                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "snapshot", "dragrow", "group", "pages", "picture", "place", "field", "bookmark", "menu", "space", "strip", "column", "ui", "keyeq",
+                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "fullscreen", "snapshot", "dragrow", "group", "pages", "picture", "place", "field", "bookmark", "menu", "space", "strip", "column", "ui", "keyeq",
             ]])
         }
     }
