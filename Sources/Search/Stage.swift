@@ -157,6 +157,13 @@ final class StageView: NSView {
     }
 
     private func settle() {
+        // A video filling the screen has its page lent to WebKit's own
+        // window, with a placeholder left here in its place. The chrome
+        // stepping aside lays this stage out again in that same moment, and
+        // taking the page back then left the screen black with the sound
+        // still playing. WebKit puts it back itself on the way out.
+        if let web = wanted as? WKWebView, web.fullscreenState != .notInFullscreen { return }
+
         // Anything here that isn't wanted, out. Only ever what is actually
         // ours: a page may be somewhere else on purpose. Except the Web
         // Inspector docked beside the page: WebKit puts it here, next to the

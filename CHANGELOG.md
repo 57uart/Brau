@@ -16,7 +16,6 @@ in [ROADMAP.md](ROADMAP.md).
 - Updates can wait for you: Settings › About › Install updates on its own, on as before. Switched off, Search still looks once a day and says when a newer version is out, and fetches, checks and installs it only when you press Install.
 ### Fixed
 
-- An account picked from the list under a sign-in field is filled only into the page it was offered for.
 - History opens at once with a long past: with two thousand pages the panel took a third of a second to come up, and a second the first time, while it made every line at once and looked on disk for each site's icon. Now it makes only the lines in view, works out its days once, and remembers which sites have no icon. Escape already closes it (#70). ([#67](https://github.com/driceroland/Search/issues/67))
 - A link clicked in Mail or any other app brings Search to the front, with the page, instead of opening it behind. ([#95](https://github.com/driceroland/Search/issues/95))
 - The Web Inspector stays beside the page when the window changes size. Search took it out at the first resize and left the page shrunk next to an empty space. ([#91](https://github.com/driceroland/Search/issues/91))
@@ -33,6 +32,7 @@ in [ROADMAP.md](ROADMAP.md).
 - The tab bar folded away with ⌘S comes back over the page on a ground of its own, as the column does: the page no longer shows through between the tabs, and its shadow falls along the bar's edge instead of from every title and icon.
 - ⌘W no longer bounces between two pins: with only pins open, putting down the last one awake leaves an empty tab instead of waking the other again. Thanks [@armin-ahmadii](https://github.com/armin-ahmadii) ([#125](https://github.com/driceroland/Search/pull/125))
 - History keeps two articles or two videos of the same site apart: an address's query (`?id=`, `?v=`) is part of what makes it a page of its own, so the second Hacker News story or YouTube video you open no longer takes the first one's place. Thanks [@yuxino](https://github.com/yuxino) ([#154](https://github.com/driceroland/Search/pull/154))
+- A video put full screen, on YouTube and the like, fills the screen with its picture rather than black with the sound playing on. Thanks [@StefanTodorov32](https://github.com/StefanTodorov32) ([#220](https://github.com/driceroland/Search/pull/220))
 
 ## 1.0.2 — 24 September 2026
 

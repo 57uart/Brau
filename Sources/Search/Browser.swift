@@ -266,10 +266,6 @@ final class Browser: NSObject, ObservableObject {
         let tab: Tab.ID
         let spot: CGRect
         let logins: [Login]
-        /// The page the list was made for: its site, and whether it came in
-        /// the clear. A click fills only a page that still is that one.
-        let host: String
-        let clear: Bool
     }
     /// Set once you have picked, so the list doesn't come straight back for
     /// the box you are still in. Cleared when the caret leaves the boxes.
@@ -305,14 +301,8 @@ final class Browser: NSObject, ObservableObject {
     /// One of the accounts in the list, picked by name.
     func choose(_ login: Login) {
         lowering?.cancel()
-        guard let list = suggesting, let tab = tabs.first(where: { $0.id == list.tab }) else { return }
+        guard let tab = tabs.first(where: { $0.id == suggesting?.tab }) ?? active else { return }
         suggesting = nil
-        // The tab may have gone somewhere else while the list was up: a
-        // redirect, a script. What was offered for one site is never put
-        // into another's page.
-        guard curtain.host(of: tab.address) == list.host,
-              (tab.address?.scheme?.lowercased() == "http") == list.clear
-        else { return }
         pickedInto = tab.id
         tab.fill(user: login.user, password: login.password) { [weak self] worked in
             if !worked { self?.announce("Couldn't find the sign-in fields anymore") }
@@ -1599,7 +1589,7 @@ final class Browser: NSObject, ObservableObject {
             // account kept from the https site of the same name.
             let inTheClear = tab.address?.scheme?.lowercased() == "http"
             let known = Array(Vault.logins(matching: host).filter { !inTheClear || $0.clear }.prefix(5))
-            suggesting = known.isEmpty ? nil : Suggesting(tab: tab.id, spot: spot, logins: known, host: host, clear: inTheClear)
+            suggesting = known.isEmpty ? nil : Suggesting(tab: tab.id, spot: spot, logins: known)
         }
 
         tab.onCredentials = { [weak self] tab, host, user, password, clear in
