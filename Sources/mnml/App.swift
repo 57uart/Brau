@@ -306,27 +306,40 @@ struct ContentView: View {
 
     @ViewBuilder
     private var stage: some View {
-        if let tab = browser.active {
-            Page(tab: tab)
+        if let pick = browser.splitPicking, let tab = browser.tab(pick.tab) {
+            SplitPickStage(browser: browser, pick: pick) { pane(tab, corner: SplitStage<EmptyView>.corner) }
+        } else if let split = browser.shownSplit {
+            SplitStage(browser: browser, split: split) { pane($0, corner: SplitStage<EmptyView>.corner) }
                 .overlay {
                     if browser.prefs.showsLinks { LinkBubble(status: browser.linkStatus) }
                 }
-                .overlay(alignment: .topTrailing) {
-                    if browser.finding {
-                        FindBar(browser: browser)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
+        } else if let tab = browser.active {
+            pane(tab)
+                .overlay {
+                    if browser.prefs.showsLinks { LinkBubble(status: browser.linkStatus) }
                 }
-                .overlay(alignment: .topLeading) {
-                    if let asked = browser.suggesting, asked.tab == tab.id {
-                        AccountList(browser: browser, asked: asked)
-                            .transition(.opacity)
-                    }
-                }
-                .animation(Motion.quick, value: browser.suggesting)
         } else {
             Palette.ground
         }
+    }
+
+    /// One page, with what floats over it: find, and the accounts a field
+    /// offers.
+    private func pane(_ tab: Tab, corner: CGFloat = 0) -> some View {
+        Page(tab: tab, corner: corner)
+            .overlay(alignment: .topTrailing) {
+                if browser.finding, tab.id == browser.activeID {
+                    FindBar(browser: browser)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let asked = browser.suggesting, asked.tab == tab.id {
+                    AccountList(browser: browser, asked: asked)
+                        .transition(.opacity)
+                }
+            }
+            .animation(Motion.quick, value: browser.suggesting)
     }
 
     /// What the column and the strip take from the page right now: animated
@@ -465,6 +478,13 @@ struct ContentView: View {
                     .padding(.top, chrome.height)
                     // From the window's own top edge, as the page is:
                     // the title bar's band is page too.
+                    .ignoresSafeArea()
+            }
+            .overlay {
+                // A tab held out of the column over the page (Split.swift).
+                SplitDropLayer(browser: browser)
+                    .padding(.leading, chrome.width)
+                    .padding(.top, chrome.height)
                     .ignoresSafeArea()
             }
             .overlay { field }
@@ -876,6 +896,10 @@ struct ContentView: View {
             }
             if browser.peekTab != nil {
                 browser.closePeek()
+                return true
+            }
+            if browser.splitPicking != nil {
+                withAnimation(Motion.settle) { browser.splitPicking = nil }
                 return true
             }
             if browser.makingSpace {

@@ -1202,6 +1202,10 @@ struct TabMenu: View {
         }
         .disabled(tab.isBlank)
         Button(tab.muted ? "Unmute Tab" : "Mute Tab") { tab.toggleMute() }
+        if browser.split(of: tab.id) != nil {
+            Divider()
+            Button("Separate Tabs") { withAnimation(Motion.settle) { browser.unsplit(tab.id) } }
+        }
         Divider()
         Button("Close Tab", action: close)
         Button("Close Other Tabs") { browser.closeOthers(but: tab) }

@@ -373,6 +373,11 @@ final class Tab: ObservableObject, Identifiable {
     /// The tab group it is in, if any (Groups.swift).
     @Published var group: UUID?
 
+    /// Set on the right half of a split: the tab on its left, which it
+    /// sits just after in the row (see Split.swift). Held by id, so a tab
+    /// that stops being next to it is simply no longer its pair.
+    var partner: Tab.ID?
+
     /// A name you gave it, in place of whatever the page calls itself. It
     /// stays through navigation: a tab you named is a tab you are keeping for
     /// a job, not for a page.
@@ -1317,6 +1322,8 @@ final class PageView: WKWebView {
 
     override func mouseDown(with event: NSEvent) {
         onTouch?()
+        // The half of a split not in front comes to the front.
+        if let tab { browser?.focusPane(tab) }
         super.mouseDown(with: event)
     }
 

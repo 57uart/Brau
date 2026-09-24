@@ -28,6 +28,7 @@ struct SideBar: View {
     /// How far the list has scrolled up under the pins: its top, less the
     /// top of the space it scrolls in.
     @State private var listTop: CGFloat = 0
+    @State private var listLeft: CGFloat = 0
     @State private var rowsTop: CGFloat = 0
     /// Where each row is, in the list's own space.
     @State private var frames: [RowKey: CGRect] = [:]
@@ -526,10 +527,12 @@ struct SideBar: View {
                 Color.clear
                     .onAppear {
                         listTop = box.frame(in: .global).minY
+                        listLeft = box.frame(in: .global).minX
                         if !Bench.drawingColumn { Bench.listOrigin = box.frame(in: .global).origin }
                     }
                     .onChange(of: box.frame(in: .global).origin) { _, origin in
                         listTop = origin.y
+                        listLeft = origin.x
                         if !Bench.drawingColumn { Bench.listOrigin = origin }
                     }
             }
@@ -537,6 +540,8 @@ struct SideBar: View {
         .overlay(alignment: .topLeading) {
             ghost
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // Out over the page, the page carries it instead (Split.swift).
+                .opacity(browser.splitDrag == nil ? 1 : 0)
                 .transaction { $0.animation = nil }
         }
         .animation(Motion.settle, value: browser.groups)
@@ -558,12 +563,56 @@ struct SideBar: View {
         }
     }
 
-    private func isHeld(_ tab: Tab) -> Bool {
-        if case .tabs(let ids, _)? = held { return ids.contains(tab.id) }
+    private func isHeld(_ tab: Tab) -> Bool { isHeld(tab.id) }
+
+    private func isHeld(_ id: Tab.ID) -> Bool {
+        if case .tabs(let ids, _)? = held { return ids.contains(id) }
         return false
     }
 
+    /// A tab's line — or, for the two halves of a split, one line for both,
+    /// drawn where the left one is.
+    @ViewBuilder
     private func tabRow(_ tab: Tab) -> some View {
+        if let split = browser.split(of: tab.id) {
+            if split.left == tab.id { pairRow(split) }
+        } else {
+            singleRow(tab)
+        }
+    }
+
+    /// The two halves of a split side by side in one line, each its own tab
+    /// to click, close or right-click.
+    private func pairRow(_ split: Split, ghost: Bool = false) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array([split.left, split.right].enumerated()), id: \.element) { index, id in
+                if index == 1 {
+                    Rectangle()
+                        .fill(Palette.hairline)
+                        .frame(width: 1, height: 14)
+                }
+                if let tab = browser.tab(id) {
+                    SideRow(
+                        browser: browser,
+                        prefs: prefs,
+                        tab: tab,
+                        live: !ghost && id == browser.activeID,
+                        pill: pill,
+                        close: { browser.close(tab) }
+                    )
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(!ghost && browser.shownSplit == split ? SideBar.hoverFill : .clear)
+        )
+        .report(.tab(split.left), when: !ghost)
+        .id(split.left)
+        .opacity(!ghost && isHeld(split.left) ? 0 : 1)
+    }
+
+    private func singleRow(_ tab: Tab) -> some View {
         let lifted = isHeld(tab)
         return SideRow(
             browser: browser,
@@ -593,6 +642,8 @@ struct SideBar: View {
         for (key, frame) in frames where frame.contains(point) {
             switch key {
             case .tab(let id):
+                // A split is picked up whole.
+                if let split = browser.split(of: id) { return .tabs([split.left, split.right], lead: split.left) }
                 let ids = browser.chosen.contains(id) ? browser.chosenTabs.map(\.id) : [id]
                 return .tabs(ids, lead: id)
             case .header(let id):
@@ -613,12 +664,15 @@ struct SideBar: View {
             switch entry {
             case .tab(let tab):
                 if case .tabs(let ids, _) = held, ids.contains(tab.id) { return }
+                // A split's right half has no line of its own.
+                if browser.split(of: tab.id)?.right == tab.id { return }
                 out.append((.tab(tab.id, group: nil), .tab(tab.id)))
             case .group(let group, let members):
                 if held == .group(group.id) { return }
                 out.append((.header(group.id, open: group.open), .header(group.id)))
                 for tab in members where group.open || tab.id == group.peek {
                     if case .tabs(let ids, _) = held, ids.contains(tab.id) { continue }
+                    if browser.split(of: tab.id)?.right == tab.id { continue }
                     out.append((.tab(tab.id, group: group.id), .tab(tab.id)))
                 }
             }
@@ -642,7 +696,13 @@ struct SideBar: View {
     private var ghost: some View {
         switch held {
         case .tabs(_, let lead)?:
-            if let tab = browser.tabs.first(where: { $0.id == lead }) {
+            if let split = browser.split(of: lead) {
+                pairRow(split, ghost: true)
+                    .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
+                    .offset(y: pointer - grab)
+                    .allowsHitTesting(false)
+            } else if let tab = browser.tabs.first(where: { $0.id == lead }) {
                 SideRow(browser: browser, prefs: prefs, tab: tab, live: false, pill: pill, close: {})
                     .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
@@ -680,6 +740,17 @@ struct SideBar: View {
         pointer = value.location.y
         let y = value.location.y
 
+        // Out past the column's edge, over the page: let go on one of its two
+        // places and the tab opens beside the one on screen (Split.swift).
+        if case .tabs(let ids, let lead) = held, ids.count == 1, browser.canSplit(lead) {
+            let at = CGPoint(x: listLeft + value.location.x, y: listTop + value.location.y)
+            if at.x > prefs.sideWidth + 8 {
+                browser.dragSplit(lead, at: at)
+                return
+            }
+            if browser.splitDrag != nil { browser.cancelSplitDrag() }
+        }
+
         // Up past the top of the list, among the pinned squares: let go there
         // and the tabs are pinned.
         let pinning: Bool
@@ -694,7 +765,7 @@ struct SideBar: View {
         var over: Tab.ID?
         if case .tabs = held {
             for (row, key) in rows {
-                guard case .tab(let id, nil) = row, let frame = frames[key] else { continue }
+                guard case .tab(let id, nil) = row, browser.split(of: id) == nil, let frame = frames[key] else { continue }
                 if y > frame.minY + frame.height * 0.28, y < frame.maxY - frame.height * 0.28 { over = id }
             }
         }
@@ -744,6 +815,15 @@ struct SideBar: View {
     }
 
     private func finishDrag() {
+        if browser.splitDrag != nil {
+            browser.dropSplit()
+            held = nil
+            pinDrop = false
+            placed = nil
+            merging = nil
+            mergeCandidate = nil
+            return
+        }
         if case .tabs(let ids, _)? = held, pinDrop {
             withAnimation(Motion.settle) {
                 for tab in browser.tabs where ids.contains(tab.id) { browser.pin(tab) }
@@ -1153,9 +1233,11 @@ struct RowFrames: PreferenceKey {
 
 extension View {
     /// Where this row is, in the list's space.
-    func report(_ key: RowKey) -> some View {
+    /// `when` false for a copy of a row — the one the hand carries — whose
+    /// place is not the row's.
+    func report(_ key: RowKey, when: Bool = true) -> some View {
         background(GeometryReader { box in
-            Color.clear.preference(key: RowFrames.self, value: [key: box.frame(in: .named("column"))])
+            Color.clear.preference(key: RowFrames.self, value: when ? [key: box.frame(in: .named("column"))] : [:])
         })
     }
 }

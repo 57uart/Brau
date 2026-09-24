@@ -13,6 +13,8 @@ enum Session {
         var group: UUID?
         /// The name you gave the tab, when you gave it one.
         var name: String?
+        /// The right half of a split with the entry before it.
+        var split: Bool?
     }
 
     struct Shape: Codable {

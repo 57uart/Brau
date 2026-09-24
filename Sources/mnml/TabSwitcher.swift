@@ -17,6 +17,14 @@ final class TabSwitcher: ObservableObject {
     private var previewRequested = false
     private var generation = UUID()
     var active: Bool { !candidates.isEmpty }
+    /// The other half of a tab's split, if it is in one. A split is one
+    /// card, under whichever half was used last — the one it comes back to.
+    var partnerOf: (Tab.ID) -> Tab.ID? = { _ in nil }
+
+    /// The candidates and the other halves shown on their cards.
+    private var shown: Set<Tab.ID> {
+        Set(candidates + candidates.compactMap(partnerOf))
+    }
 
     func record(_ id: Tab.ID) {
         recentIDs.removeAll { $0 == id }
@@ -32,7 +40,13 @@ final class TabSwitcher: ObservableObject {
             guard valid.contains(current) else { return }
             var seen: Set<Tab.ID> = []
             candidates = Array(([current] + recentIDs + eligible)
-                .filter { valid.contains($0) && seen.insert($0).inserted }
+                .filter { id in
+                    // A half whose other half is already a card is on it.
+                    guard valid.contains(id), !seen.contains(id) else { return false }
+                    if let other = partnerOf(id), seen.contains(other) { return false }
+                    seen.insert(id)
+                    return true
+                }
                 .prefix(10))
             guard candidates.count > 1 else {
                 candidates = []
@@ -119,7 +133,7 @@ final class TabSwitcher: ObservableObject {
     }
 
     func cachePreview(_ image: NSImage, for id: Tab.ID, address: URL) {
-        guard recentIDs.contains(id) || (visible && candidates.contains(id)) else { return }
+        guard recentIDs.contains(id) || (visible && shown.contains(id)) else { return }
         previews[id] = (address, image)
     }
 
@@ -127,7 +141,8 @@ final class TabSwitcher: ObservableObject {
         guard visible, !previewRequested else { return }
         previewRequested = true
         let token = generation
-        let orderedIDs = [selectedID].compactMap { $0 } + candidates.filter { $0 != selectedID }
+        let firsts = [selectedID].compactMap { $0 } + candidates.filter { $0 != selectedID }
+        let orderedIDs = firsts.flatMap { [$0] + [partnerOf($0)].compactMap { $0 } }
         let ordered = orderedIDs.compactMap { id in tabs.first { $0.id == id } }
             .filter { $0.id == current || preview(for: $0.id, address: $0.address) == nil }
         for (index, tab) in ordered.enumerated() {
@@ -158,7 +173,8 @@ final class TabSwitcher: ObservableObject {
         guard active, !visible else { return }
         reveal?.cancel()
         reveal = nil
-        previews = previews.filter { candidates.contains($0.key) }
+        let shown = shown
+        previews = previews.filter { shown.contains($0.key) }
         visible = true
     }
 }
@@ -223,29 +239,42 @@ struct TabSwitcherOverlay: View {
     private func card(_ tab: Tab, width: CGFloat, previewHeight: CGFloat, height: CGFloat) -> some View {
         Button { browser.commitTabSwitch(picking: tab.id) } label: {
             VStack(spacing: 7) {
-                ZStack {
-                    Palette.hover
-                    if let preview = switcher.preview(for: tab.id, address: tab.address) {
-                        Image(nsImage: preview)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: width - 16, height: previewHeight)
-                            .clipped()
-                    } else {
-                        Mark(icon: browser.prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: 26)
+                // A split: both its pages, side by side as on screen.
+                let halves = browser.split(of: tab.id).map { [$0.left, $0.right].compactMap { browser.tab($0) } } ?? [tab]
+                HStack(spacing: 2) {
+                    ForEach(halves) { half in
+                        ZStack {
+                            Palette.hover
+                            if let preview = switcher.preview(for: half.id, address: half.address) {
+                                PagePicture(image: preview)
+                            } else {
+                                Mark(icon: browser.prefs.glyph == .icons ? half.icon : nil, letter: half.monogram,
+                                     size: halves.count > 1 ? 20 : 26)
+                            }
+                        }
                     }
                 }
                 .frame(width: width - 16, height: previewHeight)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
 
                 HStack(spacing: 6) {
-                    if browser.prefs.glyph == .icons, !tab.isBlank {
-                        Mark(icon: tab.icon, letter: tab.monogram, size: 13)
+                    ForEach(Array(halves.enumerated()), id: \.element.id) { index, half in
+                        if index > 0 {
+                            Rectangle()
+                                .fill(Palette.hairline)
+                                .frame(width: 1, height: 11)
+                        }
+                        HStack(spacing: 6) {
+                            if browser.prefs.glyph == .icons, !half.isBlank {
+                                Mark(icon: half.icon, letter: half.monogram, size: 13)
+                            }
+                            Text(half.label)
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(Palette.ink)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    Text(tab.label)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -256,5 +285,23 @@ struct TabSwitcherOverlay: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Switch to \(tab.label)")
         .accessibilityValue(tab.id == switcher.selectedID ? "Selected" : "")
+    }
+}
+
+/// A picture of a page in a frame of another shape: as wide as the frame,
+/// from the page's top, the rest cut off below. The top is what a page is
+/// known by — and a page from half of a split, taller than it is wide,
+/// would otherwise lose it from the middle out.
+struct PagePicture: View {
+    let image: NSImage
+
+    var body: some View {
+        Color.clear
+            .overlay(alignment: .top) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+            }
+            .clipped()
     }
 }

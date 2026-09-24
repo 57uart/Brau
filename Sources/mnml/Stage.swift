@@ -11,6 +11,8 @@ import WebKit
 /// what turns that into a redraw.
 struct Page: View {
     @ObservedObject var tab: Tab
+    /// Rounded, as each half of a split is (Split.swift).
+    var corner: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -21,7 +23,7 @@ struct Page: View {
             // before and after the float changes nothing SwiftUI can see, so
             // the stage was never told to take it back when it landed, and
             // the tab stayed empty. Nothing, then the page, is a change.
-            WebStage(page: tab.isBlank || tab.asleep || tab.floating ? nil : tab.web)
+            WebStage(page: tab.isBlank || tab.asleep || tab.floating ? nil : tab.web, corner: corner)
 
             if let cover = tab.cover {
                 // The page as it was left, while it is rebuilt underneath —
@@ -195,10 +197,17 @@ private struct HistoryList: View {
 /// reload, no lost scroll position, no forgotten form.
 struct WebStage: NSViewRepresentable {
     let page: NSView?
+    var corner: CGFloat = 0
 
     func makeNSView(context: Context) -> StageView { StageView() }
 
     func updateNSView(_ view: StageView, context: Context) {
+        // A web view draws in layers SwiftUI's clip doesn't reach; its
+        // stage's own layer rounds it.
+        view.wantsLayer = true
+        view.layer?.cornerRadius = corner
+        view.layer?.cornerCurve = .continuous
+        view.layer?.masksToBounds = corner > 0
         view.show(page)
     }
 }
