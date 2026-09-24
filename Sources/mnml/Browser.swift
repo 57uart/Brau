@@ -786,6 +786,15 @@ final class Browser: NSObject, ObservableObject {
     /// How far the column's rows have followed two fingers sideways, and
     /// whether the card for a new space stands in for them (see SpaceSwipe).
     @Published var spaceSwipe: CGFloat = 0
+    /// How far the space's name in the bar has followed two fingers
+    /// sideways, the next or last name coming in beside it (see SpaceName).
+    @Published var nameSwipe: CGFloat = 0
+    /// The bar's tabs, following the name sideways and fading as they go,
+    /// then coming in from the other side as the next space's (see
+    /// SpaceSwipe.turnName).
+    @Published var rowShift: CGFloat = 0
+    @Published var rowFade: Double = 1
+    @Published var rowScale: CGFloat = 1
     @Published var makingSpace = false
     /// Which way the last change of space went: 1 to the next, -1 back.
     @Published var spaceStep = 1

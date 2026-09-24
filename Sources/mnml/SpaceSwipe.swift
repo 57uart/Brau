@@ -32,9 +32,28 @@ final class SpaceSwipe {
     private var resting = Date.distantPast
     /// A gesture let go by while resting, kept whole, glide included.
     private var ignoring = false
+    /// Where the space's name is in the bar across the top, in the window's
+    /// own space (top-left based), and whether this gesture began on it:
+    /// there, as in Dia, sideways goes from space to space, as it does in
+    /// the column.
+    var nameSpot: CGRect = .zero
+    private var onName = false
+    /// How wide the name is: as far as it slides to give way to the next.
+    var nameWidth: CGFloat = 60
+    /// Far enough, with somewhere to go, that letting go will change space.
+    /// Said with a tap while the fingers are still down — a trackpad can
+    /// only be felt through while it is being touched.
+    private var armed = false
 
     /// How long after a space comes before another can.
     static let rest: TimeInterval = 0.4
+    /// How far the fingers go on the space's name before letting go changes
+    /// space: some weight to it, one space a swipe.
+    static let nameEnough: CGFloat = 100
+    /// How far the tabs follow the name while the fingers move, and how far
+    /// out the next space's come in from once it changes.
+    static let rowFollow: CGFloat = 0.6
+    static let rowEntry: CGFloat = 14
 
     /// How far the fingers have to go for the next space to come: 50
     /// points in the column; in a bar only 52 tall, most of its height, so
@@ -84,6 +103,7 @@ final class SpaceSwipe {
                 return false
             }
             began()
+            onName = !browser.prefs.sidebar && onSpaceName(event)
             if ignoring { return true }
             return moved(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY)
         case .changed:
@@ -106,11 +126,18 @@ final class SpaceSwipe {
         }
     }
 
+    private func onSpaceName(_ event: NSEvent) -> Bool {
+        guard let height = event.window?.contentView?.bounds.height else { return false }
+        let point = CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y)
+        return nameSpot.contains(point)
+    }
+
     // MARK: - the gesture, apart from where its events come from (the bench drives these)
 
     func began() {
         axis = .undecided
         gathered = .zero
+        armed = false
         // Just after a space came: the same hand's next stroke is let go by.
         ignoring = Date() <= resting
         tracking = !ignoring
@@ -121,7 +148,7 @@ final class SpaceSwipe {
     @discardableResult
     func moved(dx: CGFloat, dy: CGFloat) -> Bool {
         guard tracking, let browser else { return false }
-        let (step, aside) = browser.prefs.sidebar ? (dx, dy) : (dy, dx)
+        let (step, aside) = browser.prefs.sidebar || onName ? (dx, dy) : (dy, dx)
         gathered.width += step
         gathered.height += aside
         if axis == .undecided {
@@ -129,8 +156,52 @@ final class SpaceSwipe {
             axis = abs(gathered.width) > abs(gathered.height) * 1.5 ? .across : .along
         }
         guard axis == .across else { return false }
-        browser.spaceSwipe = resisted(gathered.width, in: browser)
+        feelArming(in: browser)
+        // On the name, the name slides and the next comes in beside it, the
+        // row a nudge behind it; the space comes once the fingers lift.
+        if onName {
+            // Weighted: the name moves at about a third of the fingers' pace, and at the
+            // first or last space only gives a little — there is no new space
+            // to make from here.
+            let here = browser.spaces.firstIndex { $0.id == browser.spaceID } ?? 0
+            let travel = gathered.width
+            let blocked = (travel > 0 && here == 0) || (travel < 0 && here >= browser.spaces.count - 1)
+            let to = max(-nameWidth, min(nameWidth, travel * (blocked ? 0.1 : 0.35)))
+            let gone = min(1, abs(to) / max(1, nameWidth))
+            // A short spring between the trackpad's steps, so the name glides
+            // rather than stepping; the tabs go with it, fading.
+            withAnimation(.interactiveSpring(response: 0.14, dampingFraction: 0.9)) {
+                browser.nameSwipe = to
+                browser.rowShift = to * SpaceSwipe.rowFollow
+                browser.rowFade = 1 - 0.7 * gone
+            }
+        } else {
+            browser.spaceSwipe = resisted(gathered.width, in: browser)
+        }
         return true
+    }
+
+    /// A firm double tap as the swipe reaches the point of changing space,
+    /// the strongest a trackpad gives, as tabs being dragged give; a light
+    /// one backing off it.
+    private func feelArming(in browser: Browser) {
+        let travel = gathered.width
+        let here = browser.makingSpace ? browser.spaces.count : (browser.spaces.firstIndex { $0.id == browser.spaceID } ?? 0)
+        let target = here + (travel < 0 ? 1 : -1)
+        let enough = onName ? SpaceSwipe.nameEnough : SpaceSwipe.enough(for: browser)
+        let last = onName ? browser.spaces.count - 1 : browser.spaces.count
+        let now = abs(travel) >= enough && target >= 0 && target <= last
+        guard now != armed else { return }
+        armed = now
+        let performer = NSHapticFeedbackManager.defaultPerformer
+        if now {
+            performer.perform(.levelChange, performanceTime: .now)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.07) {
+                performer.perform(.levelChange, performanceTime: .now)
+            }
+        } else {
+            performer.perform(.alignment, performanceTime: .now)
+        }
     }
 
     /// Along the spaces' axis, whichever it is — for the bench.
@@ -141,17 +212,31 @@ final class SpaceSwipe {
     }
 
     func ended(cancelled: Bool = false) {
-        defer { tracking = false }
+        defer {
+            tracking = false
+            onName = false
+        }
         guard let browser, axis == .across else { return }
         let travel = gathered.width
         let here = browser.makingSpace ? browser.spaces.count : (browser.spaces.firstIndex { $0.id == browser.spaceID } ?? 0)
         // Fingers to the left, or up, bring what is next.
-        let target = cancelled || abs(travel) < SpaceSwipe.enough(for: browser) ? here : here + (travel < 0 ? 1 : -1)
-        guard target != here, target >= 0, target <= browser.spaces.count else {
-            withAnimation(Motion.settle) { browser.spaceSwipe = 0 }
+        let enough = onName ? SpaceSwipe.nameEnough : SpaceSwipe.enough(for: browser)
+        let target = cancelled || abs(travel) < enough ? here : here + (travel < 0 ? 1 : -1)
+        let last = onName ? browser.spaces.count - 1 : browser.spaces.count
+        guard target != here, target >= 0, target <= last else {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                browser.spaceSwipe = 0
+                browser.nameSwipe = 0
+                browser.rowShift = 0
+                browser.rowFade = 1
+            }
             return
         }
-        slide(browser, to: target, from: here)
+        if onName {
+            turnName(browser, to: target, from: here)
+        } else {
+            slide(browser, to: target, from: here)
+        }
     }
 
     /// Nothing that way: the rows give a little, and come back.
@@ -159,6 +244,39 @@ final class SpaceSwipe {
         let here = browser.makingSpace ? browser.spaces.count : (browser.spaces.firstIndex { $0.id == browser.spaceID } ?? 0)
         let blocked = (travel > 0 && here == 0) || (travel < 0 && here == browser.spaces.count)
         return blocked ? travel / 4 : travel
+    }
+
+    /// The name carries on until the next one is where it was, and in that
+    /// frame the row becomes the next space's, as in Dia.
+    func turnName(_ browser: Browser, to target: Int, from here: Int) {
+        let away: CGFloat = target > here ? -1 : 1
+        browser.spaceStep = target > here ? 1 : -1
+        // A long swipe, or its glide, never carries on into another space.
+        resting = Date().addingTimeInterval(0.6)
+        // The space changes the moment the fingers lift. The name is kept
+        // exactly where it is in that change — it is the next space's name
+        // now, a little short of its place — and the next space's tabs wait
+        // on the far side, faint. Then the name and the tabs finish together
+        // on one curve: heavy to start, fast, and a stop with nothing past it.
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) {
+            browser.nameSwipe -= away * nameWidth
+            browser.makingSpace = false
+            browser.switchSpace(to: browser.spaces[target].id)
+            browser.rowShift = -away * SpaceSwipe.rowEntry
+            browser.rowFade = 0.45
+            browser.rowScale = 0.97
+        }
+        DispatchQueue.main.async {
+            // The name and the tabs together, done almost as the fingers lift.
+            withAnimation(.timingCurve(0.1, 0, 0.12, 1, duration: 0.12)) {
+                browser.nameSwipe = 0
+                browser.rowShift = 0
+                browser.rowScale = 1
+            }
+            withAnimation(.easeOut(duration: 0.08)) { browser.rowFade = 1 }
+        }
     }
 
     /// The pages carry on the way the fingers went until the next one is

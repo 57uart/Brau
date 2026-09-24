@@ -220,7 +220,7 @@ struct GroupBlock<Row: View>: View {
 }
 
 /// A folded group's tabs, from its name: a new one, and each with its ×.
-private struct GroupList: View {
+struct GroupList: View {
     @ObservedObject var browser: Browser
     let groupID: TabGroup.ID
     let inside: (Bool) -> Void
@@ -396,8 +396,9 @@ final class GroupListPanel {
     private var panel: NSPanel?
     private var showing: TabGroup.ID?
 
-    /// `spot` is the name's frame in the window, top-left based.
-    func show<Content: View>(_ content: Content, for id: TabGroup.ID, beside spot: CGRect) {
+    /// `spot` is the name's frame in the window, top-left based. Beside it
+    /// in the column; under it across the top.
+    func show<Content: View>(_ content: Content, for id: TabGroup.ID, beside spot: CGRect, below: Bool = false) {
         guard let window = Links.window, let contentView = window.contentView else { return }
         let host = NSHostingView(rootView: content.fixedSize())
         host.frame.size = host.fittingSize
@@ -415,7 +416,9 @@ final class GroupListPanel {
         panel.contentView = host
         panel.setContentSize(host.fittingSize)
         panel.appearance = window.effectiveAppearance
-        let corner = NSPoint(x: spot.maxX + 8, y: contentView.bounds.height - spot.minY + 6)
+        let corner = below
+            ? NSPoint(x: spot.minX, y: contentView.bounds.height - spot.maxY - 6)
+            : NSPoint(x: spot.maxX + 8, y: contentView.bounds.height - spot.minY + 6)
         panel.setFrameTopLeftPoint(window.convertPoint(toScreen: corner))
         if panel.parent == nil { window.addChildWindow(panel, ordered: .above) }
         panel.orderFront(nil)

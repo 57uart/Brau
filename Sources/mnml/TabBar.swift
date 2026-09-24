@@ -22,6 +22,24 @@ struct TabBar: View {
     /// How wide the doors at the far end are, extension buttons included.
     @State private var doors: CGFloat = 0
 
+    /// Dragging in the row, as in the column (see SideBar): tabs, or a whole
+    /// group by its chip, into and out of groups, across the line to pin.
+    enum Held: Equatable {
+        case tabs([Tab.ID], lead: Tab.ID)
+        case group(TabGroup.ID)
+    }
+    @State private var held: Held?
+    @State private var pointer: CGFloat = 0
+    @State private var grab: CGFloat = 0
+    @State private var placed: String?
+    @State private var merging: Tab.ID?
+    @State private var mergeCandidate: Tab.ID?
+    @State private var pinDrop = false
+    /// Where each thing in the row is, in the run's space.
+    @State private var frames: [RowKey: CGRect] = [:]
+    /// Where the pinned tabs' box ends, in the run's space.
+    @State private var pinsEnd: CGFloat = 0
+
     var body: some View {
         // A GeometryReader is only here to measure the width. Its content is
         // put in a stack of its own and told to fill it: left to itself a
@@ -39,8 +57,6 @@ struct TabBar: View {
                     .frame(width: Metrics.lights)
 
                 HStack(spacing: Metrics.tabGap) {
-                    // The space on screen, first, when there are spaces.
-                    if browser.prefs.usesSpaces { SpaceDot(browser: browser) }
 
                     // The tabs, in a run of their own. While they fit, it is
                     // exactly as wide as they are and nothing about the row
@@ -59,39 +75,7 @@ struct TabBar: View {
                         } else {
                             ScrollViewReader { reader in
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: Metrics.tabGap) {
-                                        ForEach(Array(browser.tabs.enumerated()), id: \.element.id) { index, tab in
-                                            // A pinned square moves among pinned squares, a title
-                                            // among titles: each has its own stride.
-                                            let step = (tab.pin != nil ? Metrics.pinWidth : width(in: geo.size.width)) + Metrics.tabGap
-                                            let held = dragging == tab.id
-                                            TabPill(
-                                                browser: browser,
-                                                prefs: browser.prefs,
-                                                tab: tab,
-                                                live: tab.id == browser.activeID,
-                                                width: width(in: geo.size.width),
-                                                room: geo.size.width - Metrics.lights - 12,
-                                                pill: pill,
-                                                close: { browser.close(tab) }
-                                            )
-                                            // The row reflows around it while the pill itself keeps
-                                            // up with the hand: what it has travelled, less the
-                                            // ground its new place has already given it.
-                                            .offset(x: held ? travel - CGFloat(index - from) * step : 0)
-                                            // Under the hand exactly. Its place in the row springs when it
-                                            // passes another tab, and the offset springs back the same way —
-                                            // until the next move of the hand cuts the offset's spring short
-                                            // and leaves the place's running: the tab jumped a whole slot and
-                                            // drifted back each time it passed one. Only the others glide.
-                                            .transaction { if held { $0.animation = nil } }
-                                            .zIndex(held ? 1 : 0)
-                                            .shadow(color: .black.opacity(held ? 0.14 : 0), radius: 12, y: 4)
-                                            .gesture(reorder(tab: tab, index: index, step: step))
-                                            .id(tab.id)
-                                        }
-                                    }
-                                    .frame(height: Metrics.strip)
+                                    row(in: geo.size.width)
                                 }
                                 .scrollDisabled(!overflowing(in: geo.size.width))
                                 .frame(width: run(in: geo.size.width))
@@ -132,7 +116,9 @@ struct TabBar: View {
                     }
                     .buttonStyle(.plain)
                     .onHover { plussed = $0 }
-                    .opacity(nearby ? 1 : 0)
+                    // With the tabs, as the space changes (see SpaceSwipe.turnName).
+                    .offset(x: browser.rowShift)
+                    .opacity(nearby ? browser.rowFade : 0)
                     .scaleEffect(nearby ? 1 : 0.7, anchor: .leading)
                     .allowsHitTesting(nearby)
                     .animation(Motion.settle, value: nearby)
@@ -182,6 +168,323 @@ struct TabBar: View {
         // and the tabs appeared to jump aside.
         .animation(Motion.glide, value: browser.editingTab)
         .animation(Motion.settle, value: browser.tabs.map(\.id))
+        .animation(Motion.settle, value: browser.groups)
+    }
+
+    // MARK: - the row: pinned tabs, pinned groups, the line, the rest
+
+    private enum Entry: Identifiable {
+        case tab(Tab)
+        case group(TabGroup, [Tab])
+        var id: String {
+            switch self {
+            case .tab(let tab): return "t" + tab.id.uuidString
+            case .group(let group, _): return "g" + group.id.uuidString
+            }
+        }
+    }
+
+    /// The pinned groups, or everything else: tabs and groups in the row's order.
+    private func entries(pinned: Bool) -> [Entry] {
+        var out: [Entry] = []
+        var seen = Set<TabGroup.ID>()
+        for tab in browser.tabs where tab.pin == nil {
+            if let id = tab.group, let group = browser.group(id) {
+                guard group.pinned == pinned, !seen.contains(id) else { continue }
+                seen.insert(id)
+                out.append(.group(group, browser.members(of: id)))
+            } else if !pinned {
+                out.append(.tab(tab))
+            }
+        }
+        return out
+    }
+
+    /// A line after the pinned tabs and pinned groups, when there are any.
+    private var hasLine: Bool { browser.pinnedCount > 0 || browser.groups.contains(where: \.pinned) }
+
+    private func row(in strip: CGFloat) -> some View {
+        let each = width(in: strip)
+        return HStack(spacing: Metrics.tabGap) {
+            if browser.pinnedCount > 0 || browser.prefs.usesSpaces { pinBox(in: strip) }
+            HStack(spacing: Metrics.tabGap) {
+                ForEach(entries(pinned: true)) { entry in entryView(entry, each: each, strip: strip) }
+                if hasLine {
+                    Rectangle()
+                        .fill(Palette.hairline)
+                        .frame(width: 1, height: 16)
+                        .padding(.horizontal, 3)
+                        .reportInStrip(.line)
+                }
+                ForEach(entries(pinned: false)) { entry in entryView(entry, each: each, strip: strip) }
+            }
+            // After the space's name as it slides, fading (see SpaceName).
+            .scaleEffect(browser.rowScale)
+            .offset(x: browser.rowShift)
+            .opacity(browser.rowFade)
+        }
+        .frame(height: Metrics.strip)
+        .coordinateSpace(name: "run")
+        .onPreferenceChange(StripFrames.self) { frames = $0 }
+        // One drag for the whole row, which stays put while tabs move in and
+        // out of groups (see the column's list for why).
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 5, coordinateSpace: .named("run"))
+                .onChanged { value in
+                    guard let what = held ?? pick(at: value.startLocation) else { return }
+                    drag(what, value)
+                }
+                .onEnded { _ in finishDrag() }
+        )
+        .overlay(alignment: .leading) {
+            ghost(each: each, strip: strip)
+                .transaction { $0.animation = nil }
+        }
+    }
+
+    /// The pinned tabs in one box, after the space's name when there are spaces.
+    private func pinBox(in strip: CGFloat) -> some View {
+        let pins = browser.tabs.filter { $0.pin != nil }
+        return HStack(spacing: 2) {
+            if browser.prefs.usesSpaces { SpaceName(browser: browser) }
+            HStack(spacing: 2) {
+                ForEach(Array(pins.enumerated()), id: \.element.id) { index, tab in
+                    let held = dragging == tab.id
+                    pillView(tab, width: width(in: strip), strip: strip)
+                        .offset(x: held ? travel - CGFloat(index - from) * (Metrics.pinWidth + 2) : 0)
+                        .transaction { if held { $0.animation = nil } }
+                        .zIndex(held ? 1 : 0)
+                        .shadow(color: .black.opacity(held ? 0.14 : 0), radius: 12, y: 4)
+                        .gesture(reorder(tab: tab, index: index, step: Metrics.pinWidth + 2))
+                        .id(tab.id)
+                }
+            }
+            .scaleEffect(browser.rowScale)
+            .offset(x: browser.rowShift)
+            .opacity(browser.rowFade)
+        }
+        .padding(StripChip.pad)
+        .background(Palette.ink.opacity(0.05), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(GeometryReader { box in
+            Color.clear
+                .onAppear { pinsEnd = box.frame(in: .named("run")).maxX }
+                .onChange(of: box.frame(in: .named("run")).maxX) { _, end in pinsEnd = end }
+        })
+    }
+
+    private func pillView(_ tab: Tab, width: CGFloat, strip: CGFloat) -> some View {
+        TabPill(
+            browser: browser,
+            prefs: browser.prefs,
+            tab: tab,
+            live: tab.id == browser.activeID,
+            width: width,
+            room: strip - Metrics.lights - 12,
+            pill: pill,
+            close: { browser.close(tab) }
+        )
+    }
+
+    private func isHeld(_ tab: Tab) -> Bool {
+        if case .tabs(let ids, _)? = held { return ids.contains(tab.id) }
+        return false
+    }
+
+    private func loosePill(_ tab: Tab, each: CGFloat, strip: CGFloat) -> some View {
+        pillView(tab, width: each, strip: strip)
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(Palette.ink.opacity(merging == tab.id ? 0.45 : 0), lineWidth: 1.5)
+            )
+            .reportInStrip(.tab(tab.id))
+            // Held, it keeps its place unseen while a copy follows the hand.
+            .opacity(isHeld(tab) ? 0 : 1)
+            .id(tab.id)
+    }
+
+    @ViewBuilder
+    private func entryView(_ entry: Entry, each: CGFloat, strip: CGFloat) -> some View {
+        switch entry {
+        case .tab(let tab):
+            loosePill(tab, each: each, strip: strip)
+        case .group(let group, let members):
+            StripGroup(browser: browser, group: group, members: members) { tab in
+                loosePill(tab, each: each, strip: strip)
+            }
+            .opacity(held == .group(group.id) ? 0 : 1)
+        }
+    }
+
+    /// What is held, drawn where the hand is.
+    @ViewBuilder
+    private func ghost(each: CGFloat, strip: CGFloat) -> some View {
+        switch held {
+        case .tabs(_, let lead)?:
+            if let tab = browser.tabs.first(where: { $0.id == lead }) {
+                TabPill(browser: browser, prefs: browser.prefs, tab: tab, live: false, width: each,
+                        room: strip, pill: pill, close: {})
+                    .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
+                    // Over the pinned tabs it shrinks towards one.
+                    .scaleEffect(pinDrop ? 0.6 : 1, anchor: .leading)
+                    .opacity(pinDrop ? 0.85 : 1)
+                    .offset(x: pointer - grab)
+                    .allowsHitTesting(false)
+            }
+        case .group(let id)?:
+            if let group = browser.group(id) {
+                StripGroup(browser: browser, group: group, members: browser.members(of: id), pill: { tab in
+                    TabPill(browser: browser, prefs: browser.prefs, tab: tab, live: false, width: each,
+                            room: strip, pill: pill, close: {})
+                }, reports: false)
+                .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
+                .offset(x: pointer - grab)
+                .allowsHitTesting(false)
+            }
+        case nil:
+            EmptyView()
+        }
+    }
+
+    /// What a drag starting here picks up: the tab under it — with the other
+    /// picked tabs, if it is one of them — or a group, by its chip.
+    private func pick(at point: CGPoint) -> Held? {
+        for (key, frame) in frames where frame.contains(point) {
+            switch key {
+            case .tab(let id):
+                let ids = browser.chosen.contains(id) ? browser.chosenTabs.map(\.id) : [id]
+                return .tabs(ids, lead: id)
+            case .header(let id):
+                return .group(id)
+            case .line:
+                continue
+            }
+        }
+        return nil
+    }
+
+    /// The row as it is, left to right, less whatever is being dragged.
+    private func dropRows(without held: Held) -> [(row: GroupDrop.Row, key: RowKey)] {
+        var out: [(GroupDrop.Row, RowKey)] = []
+        func add(_ entry: Entry) {
+            switch entry {
+            case .tab(let tab):
+                if case .tabs(let ids, _) = held, ids.contains(tab.id) { return }
+                out.append((.tab(tab.id, group: nil), .tab(tab.id)))
+            case .group(let group, let members):
+                if held == .group(group.id) { return }
+                out.append((.header(group.id, open: group.open), .header(group.id)))
+                for tab in members where group.open || tab.id == group.peek {
+                    if case .tabs(let ids, _) = held, ids.contains(tab.id) { continue }
+                    out.append((.tab(tab.id, group: group.id), .tab(tab.id)))
+                }
+            }
+        }
+        entries(pinned: true).forEach(add)
+        if hasLine { out.append((.line, .line)) }
+        entries(pinned: false).forEach(add)
+        return out
+    }
+
+    private func key(of held: Held) -> RowKey {
+        switch held {
+        case .tabs(_, let lead): return .tab(lead)
+        case .group(let id): return .header(id)
+        }
+    }
+
+    /// As the column's drag, across instead of down: the row rearranges
+    /// around what is held, tabs into and out of groups; held over the middle
+    /// of a tab on its own it waits, and a moment there makes a group of the
+    /// two; over the pinned tabs, let go and they are pinned.
+    private func drag(_ what: Held, _ value: DragGesture.Value) {
+        if held == nil {
+            held = what
+            grab = value.startLocation.x - (frames[key(of: what)]?.minX ?? value.startLocation.x)
+        }
+        guard let held else { return }
+        pointer = value.location.x
+        let x = value.location.x
+
+        let pinning: Bool
+        if case .tabs = held { pinning = x < (browser.pinnedCount > 0 ? pinsEnd : 0) } else { pinning = false }
+        if pinning != pinDrop {
+            withAnimation(Motion.quick) { pinDrop = pinning }
+            browser.feelDrag(firm: true)
+        }
+        guard !pinning else { return }
+        let rows = dropRows(without: held)
+
+        var over: Tab.ID?
+        if case .tabs = held {
+            for (row, key) in rows {
+                guard case .tab(let id, nil) = row, let frame = frames[key] else { continue }
+                if x > frame.minX + frame.width * 0.28, x < frame.maxX - frame.width * 0.28 { over = id }
+            }
+        }
+        if over != mergeCandidate {
+            mergeCandidate = over
+            merging = nil
+            if let over {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    guard mergeCandidate == over, self.held != nil else { return }
+                    withAnimation(Motion.quick) { merging = over }
+                    browser.feelDrag(firm: true)
+                }
+            }
+        }
+        guard over == nil else { return }
+
+        let gap = rows.filter { (frames[$0.key]?.midX ?? .infinity) < x }.count
+        let row = rows.map(\.row)
+        withAnimation(Motion.settle) {
+            switch held {
+            case .tabs(let ids, let lead):
+                let place = GroupDrop.tab(at: gap, in: row)
+                let mark = String(describing: place)
+                guard mark != placed else { return }
+                let first = placed == nil
+                placed = mark
+                let before = browser.tabs.first { $0.id == lead }?.group
+                let order = browser.tabs.map(\.id)
+                browser.place(browser.tabs.filter { ids.contains($0.id) }, place)
+                let after = browser.tabs.first { $0.id == lead }?.group
+                if before != after { browser.feelDrag(firm: true) }
+                else if !first, browser.tabs.map(\.id) != order { browser.feelDrag() }
+            case .group(let id):
+                let landing = GroupDrop.group(at: gap, in: row)
+                let mark = String(describing: landing)
+                guard mark != placed else { return }
+                let first = placed == nil
+                placed = mark
+                let wasPinned = browser.group(id)?.pinned
+                let order = browser.tabs.map(\.id)
+                browser.placeGroup(id, pinned: landing.pinned, before: landing.before)
+                if browser.group(id)?.pinned != wasPinned { browser.feelDrag(firm: true) }
+                else if !first, browser.tabs.map(\.id) != order { browser.feelDrag() }
+            }
+        }
+    }
+
+    private func finishDrag() {
+        if case .tabs(let ids, _)? = held, pinDrop {
+            withAnimation(Motion.settle) {
+                for tab in browser.tabs where ids.contains(tab.id) { browser.pin(tab) }
+            }
+        }
+        if case .tabs(let ids, _)? = held, let merging, let target = browser.tabs.first(where: { $0.id == merging }) {
+            withAnimation(Motion.settle) {
+                _ = browser.makeGroup(of: [target] + browser.tabs.filter { ids.contains($0.id) })
+            }
+        }
+        withAnimation(Motion.settle) {
+            held = nil
+            pinDrop = false
+            placed = nil
+            merging = nil
+            mergeCandidate = nil
+        }
     }
 
     // MARK: - the spaces, one above the other
@@ -281,10 +584,7 @@ struct TabBar: View {
     /// field's width for a tab being edited, which grows to take it.
     private func content(in strip: CGFloat) -> CGFloat {
         let each = width(in: strip)
-        let pinned = CGFloat(browser.pinnedCount)
-        let loose = CGFloat(browser.tabs.count) - pinned
-        var total = pinned * Metrics.pinWidth + loose * each
-            + CGFloat(max(0, browser.tabs.count - 1)) * Metrics.tabGap
+        var total = fixed + CGFloat(looseShown) * each
         if let id = browser.editingTab, let tab = browser.tabs.first(where: { $0.id == id }) {
             total += min(340, strip - Metrics.lights - 12) - (tab.pin != nil ? Metrics.pinWidth : each)
         }
@@ -299,8 +599,9 @@ struct TabBar: View {
         return max(0, strip - Metrics.lights - dot - 12 - Metrics.plusWidth - far - 3 * Metrics.tabGap)
     }
 
-    /// What the space's dot takes before the tabs, when there are spaces.
-    private var dot: CGFloat { browser.prefs.usesSpaces ? SpaceDot.width + Metrics.tabGap : 0 }
+    /// The space's name is in the pinned box now (see SpaceName), not a dot
+    /// of its own before the tabs.
+    private var dot: CGFloat { 0 }
 
     /// Every loose tab is the same width, so the cross is always in the same
     /// place. Past a dozen or so they start giving ground; too narrow for a
@@ -308,7 +609,42 @@ struct TabBar: View {
     /// mark and its air. Past that, the run scrolls. The pinned squares take
     /// their room off the top.
     private func width(in strip: CGFloat) -> CGFloat {
-        width(in: strip, pinned: browser.pinnedCount, count: browser.tabs.count)
+        let loose = CGFloat(looseShown)
+        guard loose > 0 else { return Metrics.tabWidth }
+        return max(Metrics.tabMinWidth, min(Metrics.tabWidth, (room(in: strip) - fixed) / loose))
+    }
+
+    /// The tabs in the row that aren't pinned and aren't folded away.
+    private var looseShown: Int {
+        browser.tabs.filter { tab in
+            guard tab.pin == nil else { return false }
+            guard let id = tab.group, let group = browser.group(id) else { return true }
+            return group.open || group.peek == tab.id
+        }.count
+    }
+
+    /// Everything in the row but the loose tabs themselves: the pinned
+    /// box, the groups' chips and patches, the line, and the gaps.
+    private var fixed: CGFloat {
+        var total: CGFloat = 0
+        var items = 0
+        let pins = browser.pinnedCount
+        if pins > 0 || browser.prefs.usesSpaces {
+            total += CGFloat(pins) * Metrics.pinWidth + CGFloat(max(0, pins - 1)) * 2 + 2 * StripChip.pad
+            if browser.prefs.usesSpaces { total += SpaceSwipe.shared.nameWidth + 16 + 2 }
+            items += 1
+        }
+        for entry in entries(pinned: true) + entries(pinned: false) {
+            items += 1
+            guard case .group(let group, let members) = entry else { continue }
+            let shown = members.filter { group.open || $0.id == group.peek }.count
+            total += StripChip.width(group, icons: browser.prefs.glyph == .icons) + 2 * StripChip.pad + CGFloat(shown) * StripChip.rule
+        }
+        if hasLine {
+            total += 7
+            items += 1
+        }
+        return total + CGFloat(max(0, items - 1)) * Metrics.tabGap
     }
 
     private func width(in strip: CGFloat, pinned pins: Int, count: Int) -> CGFloat {
@@ -445,6 +781,12 @@ private struct TabPill: View {
         // and edits its letter; everything else answers the first click at
         // once. Change Letter in the menu covers the rest.
         .modifier(OneClick(double: live && pinned) {
+            // ⌘-click picks tabs, ⇧-click a run of them, for the menu to act
+            // on together, as in the column.
+            let flags = NSEvent.modifierFlags
+            if !pinned, flags.contains(.command) { browser.toggleChosen(tab); return }
+            if !pinned, flags.contains(.shift) { browser.chooseRange(to: tab); return }
+            browser.chosen = []
             if live && pinned {
                 browser.editLetter(tab)
             } else if live && !pinned {
@@ -574,7 +916,9 @@ private struct TabPill: View {
             // the one thing in the window that says how far in you are, and
             // it says it without adding anything to the window.
             ZStack(alignment: .leading) {
-                Rectangle().fill(Palette.wash)
+                // The ink, see-through, as in the column: a flat grey all but
+                // vanished over a group's colour.
+                Rectangle().fill(pinned ? SideBar.pinLiveFill : SideBar.liveFill)
                 // Not on a pinned square, nor a tab down to its mark. Thirty
                 // points of grey filling from the left behind a single letter
                 // says nothing about anything — it needs the width of a title
@@ -588,15 +932,22 @@ private struct TabPill: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             .matchedGeometryEffect(id: "live", in: pill)
+        } else if browser.chosen.contains(tab.id) {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(SideBar.liveFill)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(Palette.ink.opacity(0.18), lineWidth: 1)
+                )
         } else if hovering {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Palette.hover)
+                .fill(pinned ? SideBar.pinHoverFill : SideBar.hoverFill)
         } else if pinned {
             // A letter with nothing behind it reads as debris. A pinned tab
             // keeps a faint ground of its own so the block of them reads as
             // one thing.
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Palette.wash.opacity(0.55))
+                .fill(SideBar.pinFill)
         }
     }
 
@@ -733,8 +1084,8 @@ struct TabMenu: View {
             Button("Change Letter") { browser.editLetter(tab) }
             Button("Unpin") { browser.unpin(tab) }
         }
-        // Tab groups live in the column (Groups.swift).
-        if browser.prefs.sidebar, tab.pin == nil {
+        // Tab groups, in the column and across the top (Groups.swift).
+        if tab.pin == nil {
             let targets = browser.menuTargets(for: tab)
             Divider()
             Button(targets.count > 1 ? "New Group from \(targets.count) Tabs" : "New Group with Tab") {
