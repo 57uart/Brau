@@ -68,6 +68,8 @@ struct GroupBlock<Row: View>: View {
     @State private var hovering = false
     @State private var listing = false
     @State private var inList = false
+    /// Clicked since the pointer arrived: no list until it leaves and comes back.
+    @State private var clicked = false
     @State private var draft = ""
     @FocusState private var naming: Bool
 
@@ -133,10 +135,17 @@ struct GroupBlock<Row: View>: View {
                 .fill(hovering && !washed ? Palette.hover : .clear)
         )
         .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .onTapGesture(count: 2) { browser.renamingGroup = group.id }
-        .onTapGesture { withAnimation(Motion.settle) { browser.toggleOpen(group.id) } }
+        // A click folds or opens it, every time, however fast — as in Dia.
+        // Renaming is in its menu (and offered as a group is made); a double
+        // click for it held every click back or fought quick ones.
+        .onTapGesture {
+            clicked = true
+            listing = false
+            withAnimation(Motion.settle) { browser.toggleOpen(group.id) }
+        }
         .onHover { over in
             hovering = over
+            if !over { clicked = false }
             peekList(over)
         }
         // Dragged by the column's list as a whole (see SideBar), which
@@ -159,7 +168,7 @@ struct GroupBlock<Row: View>: View {
     private func peekList(_ over: Bool) {
         guard !group.open, browser.renamingGroup != group.id else { listing = false; return }
         DispatchQueue.main.asyncAfter(deadline: .now() + (over ? 0.35 : 0.3)) {
-            if over, hovering { listing = true }
+            if over, hovering, !clicked, !group.open { listing = true }
             if !over, !hovering, !inList { listing = false }
         }
     }
