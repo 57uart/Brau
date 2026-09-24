@@ -1266,7 +1266,11 @@ final class Browser: NSObject, ObservableObject {
         }
         prepare(tab)
         let here = atEnd ? nil : tabs.firstIndex { $0.id == activeID }
-        tabs.insert(tab, at: here.map { $0 + 1 } ?? tabs.count)
+        // Beside the tab you are on — but never among the pins, which the
+        // new tab isn't one of: from a pin, it comes first after them. A link
+        // from another app, with a pin in front, landed between two (#219).
+        let place = here.map { max($0 + 1, pinnedCount) } ?? tabs.count
+        tabs.insert(tab, at: place)
         tab.go(to: url)
         if foreground {
             leaving()

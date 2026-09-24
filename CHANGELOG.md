@@ -15,6 +15,8 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Fixed
 
+- A link from another app, or one opened from a pinned tab, comes first after the pins instead of landing between two of them. ([#219](https://github.com/driceroland/Search/issues/219))
+
 ## 1.0.3 — 24 September 2026
 
 ### Added
