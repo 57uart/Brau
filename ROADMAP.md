@@ -41,8 +41,12 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [x] **User scripts stay in their package** A user script's file is read from the extension's own package. On main already; the pull request closes, with thanks, when it ships. *([#198](https://github.com/driceroland/Search/pull/198))*
 - [x] **Copying a password asks first** Copy in Passwords asks who you are first, as Show does. On main already; the pull request closes, with thanks, when it ships. *([#203](https://github.com/driceroland/Search/pull/203))*
 - [x] **Links to other apps ask first** On main already; the pull request closes, with thanks, when it ships. *([#206](https://github.com/driceroland/Search/pull/206))*
-- [x] **Extension reloads ask for new access** Reloading an extension asks before it gets more access. On main already; [#161](https://github.com/driceroland/Search/pull/161) is to be compared with it before it closes. *([#135](https://github.com/driceroland/Search/issues/135), [#161](https://github.com/driceroland/Search/pull/161))*
+- [x] **Extension reloads ask for new access** Reloading an extension loaded from a folder asks before it gets more access, and keeps the old version on no. *([#135](https://github.com/driceroland/Search/issues/135), [#161](https://github.com/driceroland/Search/pull/161))*
+- [x] **Extension update check** The update check reads the version from the right place. *([#201](https://github.com/driceroland/Search/pull/201))*
+- [x] **Passwords keep to Search's own** Passwords asks the keychain only about Search's own items. [#205](https://github.com/driceroland/Search/pull/205) builds on it: an http page is offered only what was kept from http. *([#208](https://github.com/driceroland/Search/pull/208), [#205](https://github.com/driceroland/Search/pull/205))*
+- [x] **Pop-ups need a click** *([#207](https://github.com/driceroland/Search/pull/207))*
 - [x] **Folded tab bar gets its own ground** The tab bar folded away with ⌘S comes back on a ground of its own: the page no longer shows through between the tabs.
+- [x] **Install updates by hand** Settings › About › Install updates on its own, on by default. Off, Search still says when a version is out and installs it when you press Install. *(email)*
 
 ## Now — fixes for the next update
 
@@ -117,12 +121,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Block YouTube's ads** YouTube's ads. They come from youtube.com itself, which the blocker's lists can't tell apart. Whether to go that far is an open question. *([#218](https://github.com/driceroland/Search/issues/218), email)*
 - [ ] **Extensions per space** Each space with the extensions it wants, on and off apart from the others. WebKit has one extension controller for the whole app, so this means one per space. Drice's call, 24 Sep: later. *(X)*
 
-## Pull requests to review
-
-- [ ] **Extension update check** The update check reads the version from the right place. *([#201](https://github.com/driceroland/Search/pull/201))*
-- [ ] **Passwords keep to Search's own** Passwords asks the keychain only about Search's own items. [#205](https://github.com/driceroland/Search/pull/205) builds on it: an http page is offered only what was kept from http. *([#208](https://github.com/driceroland/Search/pull/208), [#205](https://github.com/driceroland/Search/pull/205))*
-- [ ] **Pop-ups need a click** *([#207](https://github.com/driceroland/Search/pull/207))*
-
 ## Drice's call
 
 - [ ] **Double-click for a new tab** A double-click below the tabs opens a new one. *([#162](https://github.com/driceroland/Search/issues/162), [#167](https://github.com/driceroland/Search/pull/167))*
@@ -134,7 +132,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Sidebar on the right** The sidebar on the right. *(email)*
 - [ ] **Toolbar buttons on the left** Back, forward and reload on the left with the tabs across the top. *(email)*
 - [ ] **Autocomplete in a new tab** What exactly was asked, to find out. *(X)*
-- [ ] **A little window for links from other apps, and a shortcut from anywhere** As Little Arc does: a link clicked in another app opens in a small window of its own, to read and close or to send into the main window as a tab; a shortcut anywhere on the Mac opens it to type an address or a search. Close to the peek at a link, which already keeps a page as a tab. Off unless turned on. *(X)*
+- [ ] **Little window for outside links** A little window for links opened from other apps, and a shortcut to open it from anywhere. *(X)*
 
 ## Asked to try again on the latest version
 
