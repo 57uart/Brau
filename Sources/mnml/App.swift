@@ -674,6 +674,7 @@ struct ContentView: View {
         // copy shares, and a probe resized for a test once changed the size
         // the real window came back at.
         window.setFrameAutosaveName(Store.world.map { "search (\($0))" } ?? "search")
+        FullScreenEsc.keep(window)
 
         // The traffic lights set in from the corner and centred in the strip's
         // height, in both modes, without a toolbar's rounder corners — see
@@ -912,5 +913,35 @@ struct ContentView: View {
             !browser.reviewing && !browser.finding && !browser.bookmarksOpen &&
             !browser.veiling && !browser.summoning && browser.editingTab == nil &&
             browser.asking == nil && browser.offering == nil && browser.suggesting == nil
+    }
+}
+
+/// Esc nobody wanted — the page, the address field, a row being renamed —
+/// ends at SwiftUI's hosting view as Cancel, and SwiftUI takes Cancel in a
+/// full-screen window as leaving full screen: Safari's habit too, and not
+/// what Esc is for in a browser. It gets there from the page through WebKit
+/// and from a text field through AppKit, both past any responder put in its
+/// way, and SwiftUI tells its window to leave without going through Cancel.
+/// So the window's leaving refuses while the event being handled is Esc.
+/// ⌃⌘F, the green button and the menu still leave, and a video's own full
+/// screen is WebKit's window, not this one, which Esc still ends.
+enum FullScreenEsc {
+    private static var done = false
+
+    static func keep(_ window: NSWindow) {
+        guard !done else { return }
+        let leave = NSSelectorFromString("exitFullScreenMode:")
+        guard let cls = NSClassFromString("SwiftUI.AppKitWindow"),
+              let method = class_getInstanceMethod(cls, leave) else { return }
+        done = true
+        typealias Leave = @convention(c) (NSWindow, Selector, Any?) -> Void
+        let before = unsafeBitCast(method_getImplementation(method), to: Leave.self)
+        let block: @convention(block) (NSWindow, Any?) -> Void = { window, sender in
+            // Down or up: from a page the leaving comes once WebKit has
+            // answered, and by then the key may have come back up.
+            if let event = NSApp.currentEvent, [.keyDown, .keyUp].contains(event.type), event.keyCode == 53 { return }
+            before(window, leave, sender)
+        }
+        method_setImplementation(method, imp_implementationWithBlock(block))
     }
 }
