@@ -474,6 +474,9 @@ struct ContentView: View {
                     PeekPanel(browser: browser, tab: page)
                         .padding(.leading, chrome.width)
                         .padding(.top, chrome.height)
+                        // From the window's own top edge, as the page is:
+                        // the title bar's band is page too.
+                        .ignoresSafeArea()
                 }
             }
             .overlay { field }

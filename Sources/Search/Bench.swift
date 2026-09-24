@@ -432,10 +432,10 @@ final class Bench {
             }
             // The column folded away, out for a look, and the lights with it (see Fold.swift).
             out["peek"] = browser.peekTab?.address?.absoluteString ?? ""
-            // Where the peek's page sits in the window, top-left origin, in points.
+            // Where the peek's page sits in the window, from its top-left corner, in points.
             if let web = browser.peekTab?.built, let window = web.window {
                 let r = web.convert(web.bounds, to: nil)
-                out["peekFrame"] = [Int(r.minX), Int(window.contentLayoutRect.height - r.maxY), Int(r.width), Int(r.height)]
+                out["peekFrame"] = [Int(r.minX), Int(window.frame.height - r.maxY), Int(r.width), Int(r.height)]
             }
             out["folded"] = browser.folded
             out["peeking"] = browser.peeking
