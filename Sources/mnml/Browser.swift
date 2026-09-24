@@ -1975,6 +1975,14 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         decidePolicyFor response: WKNavigationResponse,
         decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
     ) {
+        // A redirect (3xx) has nowhere to be shown and carries no content of
+        // its own, but must be followed rather than downloaded — even if its
+        // headers say `application/binary` or `application/octet-stream`, as
+        // youtube.com and some servers do on their redirects.
+        if let http = response.response as? HTTPURLResponse, (300...399).contains(http.statusCode) {
+            decisionHandler(.allow)
+            return
+        }
         decisionHandler(response.canShowMIMEType ? .allow : .download)
     }
 
