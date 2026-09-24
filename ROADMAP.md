@@ -37,6 +37,9 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 
 ## Done, in the next version
 
+- [x] **iCloud Passwords** Pairs on the first code and stays paired: its first messages now wait for Apple's helper, and an extension talking to an app on the Mac stays awake, as in Chrome. Tested with a stand-in helper; to confirm with Apple's own in the next build. *([#17](https://github.com/driceroland/Search/issues/17), email ×2, [#217](https://github.com/driceroland/Search/pull/217))*
+- [x] **Settings sidebar corners** The Settings sidebar has rounded inner corners. A fix is waiting in [#222](https://github.com/driceroland/Search/pull/222). *([#221](https://github.com/driceroland/Search/issues/221), [#222](https://github.com/driceroland/Search/pull/222), [#226](https://github.com/driceroland/Search/issues/226))*
+- [x] **⇧⌘C copies without a word** ⇧⌘C copies the address, but nothing in the app says so. A fix is waiting in [#182](https://github.com/driceroland/Search/pull/182). *([#176](https://github.com/driceroland/Search/issues/176), [#182](https://github.com/driceroland/Search/pull/182))*
 - [x] **Links from other apps skip the pins** A link opened from another app never lands among the pins. *([#219](https://github.com/driceroland/Search/issues/219))*
 - [x] **Little window for outside links** A little window for links opened from other apps, and a shortcut to open it from anywhere. *(X, [#227](https://github.com/driceroland/Search/pull/227))*
 
@@ -45,9 +48,8 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Bitwarden goes blank after sign-in** For one person it doesn't load at all. Before signing in it works — popup, WebAssembly, background. Probably fixed by 1Password's worker fix ([#126](https://github.com/driceroland/Search/pull/126)) and the extension storage fix in 1.0.2; needs a real account to confirm. Also asked: a self-hosted Vaultwarden server behind the extension. *(X, email)*
 - [ ] **Bitwarden on Intel Macs** The extension says "WebAssembly is not supported" on an Intel Mac. *([#175](https://github.com/driceroland/Search/issues/175))*
 - [ ] **Google sign-in flashes with Proton Pass** With Proton Pass signed in, Google's sign-in page reloads every half second. Presumed fixed in 1.0.2 by [#126](https://github.com/driceroland/Search/pull/126) and the passkey changes; to confirm with the person who saw it. *(X)*
-- [ ] **Vimium C doesn't start** WebKit fails to load its background (Vimium itself works). A fix is waiting in [#170](https://github.com/driceroland/Search/pull/170). *(X, email, [#170](https://github.com/driceroland/Search/pull/170))*
+- [ ] **Vimium C doesn't start** Its background now starts ([#170](https://github.com/driceroland/Search/pull/170), on main); it doesn't answer its keys yet. *(X, email, [#170](https://github.com/driceroland/Search/pull/170))*
 - [ ] **Passkeys under the sign-in field** A site's passkey button brings up the Mac's passkey sheet now; next is the suggestion Safari shows as you click into a sign-in field. *([#17](https://github.com/driceroland/Search/issues/17), X)*
-- [ ] **iCloud Passwords** Pairing asks for the code twice ([#217](https://github.com/driceroland/Search/pull/217) fixes the first code); one person says it doesn't work at all, details asked. *([#17](https://github.com/driceroland/Search/issues/17), email ×2, [#217](https://github.com/driceroland/Search/pull/217))*
 - [ ] **Window stutters between screens** Dragging the window from one screen to another stutters. Needs a trace recorded on two screens. *(X)*
 - [ ] **⌘F lands on the back button** On some pages ⌘F focuses the back button instead of the find field. *([#172](https://github.com/driceroland/Search/issues/172))*
 - [ ] **Wrong icons on some tabs** Meta AI shows Google's G, Swagger UI stays on a letter. [#216](https://github.com/driceroland/Search/pull/216) fixes it; two small changes asked before it goes in. *([#181](https://github.com/driceroland/Search/issues/181), [#216](https://github.com/driceroland/Search/pull/216))*
@@ -55,7 +57,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Early content scripts miss restored pages** A content script that runs at document_start can miss the page restored at a hidden launch. *([#199](https://github.com/driceroland/Search/issues/199))*
 - [ ] **Suggestions slow with a big history** Address suggestions slow down with a large history. *([#200](https://github.com/driceroland/Search/issues/200))*
 - [ ] **Stuttering pages** Details to gather. *([#211](https://github.com/driceroland/Search/issues/211))*
-- [ ] **Floating video on Twitch, Netflix, X** The floating video misbehaves on some sites. Only part of the picture on Twitch and Netflix, sometimes the player without a picture on YouTube, only some of the time on X; Netflix subtitles disappear from it ([#190](https://github.com/driceroland/Search/pull/190)). *([#123](https://github.com/driceroland/Search/issues/123), email ×2, [#190](https://github.com/driceroland/Search/pull/190))*
+- [ ] **Floating video on Twitch, Netflix, X** Netflix: the picture now stays inside the floating window and subtitles show ([#190](https://github.com/driceroland/Search/pull/190), on main). Still open: part of the picture on Twitch, sometimes no picture on YouTube, only some of the time on X. *([#123](https://github.com/driceroland/Search/issues/123), email ×2, [#190](https://github.com/driceroland/Search/pull/190))*
 - [ ] **Videos stuck muted** Some video sites play muted, with nothing to turn the sound on. *([#223](https://github.com/driceroland/Search/issues/223))*
 - [ ] **Ad blocker leaves empty spaces** On news sites like AS.com, blocked ads leave gaps in the page. *([#159](https://github.com/driceroland/Search/issues/159))*
 - [ ] **Chatbot pages struggle or crash** grok.com and other chatbot pages; details asked. *(email)*
@@ -67,8 +69,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Extension popups miss messages** Extension popups and extension pages don't receive messages from the extension's background in a test run (the offscreen document does). To check in a window on screen; would matter for popups waiting on the background.
 - [ ] **Dragging a pin redraws the column** Dragging a pin redraws the whole column each frame, as dragging a tab did before 1.0.2.
 - [ ] **Bookmarks popover closes on fold** The bookmarks popover closes when the hidden sidebar folds (it counts as leaving the sidebar). A fix is waiting in [#89](https://github.com/driceroland/Search/pull/89). *([#88](https://github.com/driceroland/Search/issues/88), [#89](https://github.com/driceroland/Search/pull/89))*
-- [ ] **Settings sidebar corners** The Settings sidebar has rounded inner corners. A fix is waiting in [#222](https://github.com/driceroland/Search/pull/222). *([#221](https://github.com/driceroland/Search/issues/221), [#222](https://github.com/driceroland/Search/pull/222), [#226](https://github.com/driceroland/Search/issues/226))*
-- [ ] **⇧⌘C copies without a word** ⇧⌘C copies the address, but nothing in the app says so. A fix is waiting in [#182](https://github.com/driceroland/Search/pull/182). *([#176](https://github.com/driceroland/Search/issues/176), [#182](https://github.com/driceroland/Search/pull/182))*
 - [ ] **⌥⌫ with an inline completion** With the rest of an address offered inline, Option-Backspace does nothing; it should drop the offer and delete the last word typed. *([#228](https://github.com/driceroland/Search/issues/228))*
 
 ## Next — small additions people asked for
