@@ -37,7 +37,29 @@ extension Browser {
     }
 }
 
-/// The panel, over the page, and the dimmed page around it.
+/// The peek over the page: the page dimmed around it, and the panel.
+struct PeekLayer: View {
+    @ObservedObject var browser: Browser
+
+    var body: some View {
+        ZStack {
+            // The dimming only fades. Grown and shrunk with the panel, its
+            // edges travelled across the window as it came (Drice, 24 Sep 2026).
+            if browser.peekTab != nil {
+                Color.black.opacity(0.22)
+                    .contentShape(Rectangle())
+                    .onTapGesture { browser.closePeek() }
+                    .transition(.opacity)
+            }
+            if let tab = browser.peekTab {
+                PeekPanel(browser: browser, tab: tab)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+        }
+    }
+}
+
+/// The panel itself, in the middle of the page.
 struct PeekPanel: View {
     @ObservedObject var browser: Browser
     @ObservedObject var tab: Tab
@@ -45,9 +67,6 @@ struct PeekPanel: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color.black.opacity(0.22)
-                    .contentShape(Rectangle())
-                    .onTapGesture { browser.closePeek() }
                 HStack(alignment: .top, spacing: 10) {
                     Page(tab: tab)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -64,8 +83,8 @@ struct PeekPanel: View {
                 .frame(width: geo.size.width * 0.82, height: geo.size.height * 0.86)
                 .offset(x: 21)
             }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 
     private struct Knob: View {

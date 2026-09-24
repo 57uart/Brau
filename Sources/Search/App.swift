@@ -470,14 +470,12 @@ struct ContentView: View {
             .overlay {
                 // Over the page only: the column, the strip and the bookmarks
                 // bar stay as they are, uncovered and in reach.
-                if let page = browser.peekTab {
-                    PeekPanel(browser: browser, tab: page)
-                        .padding(.leading, chrome.width)
-                        .padding(.top, chrome.height)
-                        // From the window's own top edge, as the page is:
-                        // the title bar's band is page too.
-                        .ignoresSafeArea()
-                }
+                PeekLayer(browser: browser)
+                    .padding(.leading, chrome.width)
+                    .padding(.top, chrome.height)
+                    // From the window's own top edge, as the page is:
+                    // the title bar's band is page too.
+                    .ignoresSafeArea()
             }
             .overlay { field }
             .overlay { panels }
