@@ -2704,6 +2704,14 @@ enum ExtensionShims {
             return Store.settings.stringArray(forKey: "extensions.granted.\(id)") ?? []
         case "permissions.request":
             let wanted = (first as? [String]) ?? []
+            // As in Chrome: only what the manifest named, as a permission or
+            // an optional one. What was agreed to at install still describes
+            // the extension; it can't ask later for something it never named.
+            let manifest = context.webExtension.manifest
+            let named = Set(((manifest["permissions"] as? [Any] ?? []) + (manifest["optional_permissions"] as? [Any] ?? [])).compactMap { $0 as? String })
+            guard wanted.allSatisfy(named.contains) else {
+                throw Unsupported(what: "Only permissions specified in the manifest may be requested.")
+            }
             // Those Chrome grants without a word, having nothing to warn of.
             let silent: Set<String> = ["tabGroups", "sidePanel", "offscreen", "idle", "power", "fontSettings", "search",
                                        "system.cpu", "system.memory", "system.display", "favicon"]
