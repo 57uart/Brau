@@ -627,6 +627,8 @@ struct TabAddressField: NSViewRepresentable {
         field.cell?.wraps = false
         field.stringValue = browser.tabDraft
         context.coordinator.watch(field)
+        // The site card stands under whichever field the address is in.
+        SiteCardPanel.follow(browser, anchor: field)
         return field
     }
 
@@ -699,7 +701,7 @@ struct TabAddressField: NSViewRepresentable {
         /// on to what it was for.
         private var watcher: Any?
 
-        func watch(_ field: NSTextField) {
+        @MainActor func watch(_ field: NSTextField) {
             guard watcher == nil else { return }
             watcher = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self, weak field] event in
                 guard let self, let field, event.window === field.window,
@@ -711,7 +713,7 @@ struct TabAddressField: NSViewRepresentable {
             }
         }
 
-        func unwatch() {
+        @MainActor func unwatch() {
             if let watcher { NSEvent.removeMonitor(watcher) }
             watcher = nil
         }
@@ -739,6 +741,12 @@ struct TabMenu: View {
             browser.duplicate()
         }
         .disabled(tab.isBlank)
+        // The card a click on the tab you are on shows under its address.
+        Button("Site Information…") {
+            if browser.activeID != tab.id { browser.select(tab) }
+            browser.beginTabEdit(tab)
+        }
+        .disabled(tab.isBlank || tab.address == nil || tab.pin != nil)
         Button("Copy Address") {
             browser.select(tab)
             browser.copyAddress()

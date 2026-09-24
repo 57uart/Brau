@@ -418,6 +418,7 @@ final class Bench {
             out["peeking"] = browser.peeking
             out["sideHides"] = browser.prefs.sideHides
             out["lightsHidden"] = Fold.titlebar?.isHidden ?? false
+            out["siteCard"] = SiteCardPanel.isShown
             // Whether this Mac lets the browser use its passkeys at all — the
             // one-time permission macOS asks a browser other than Safari for.
             switch ASAuthorizationWebBrowserPublicKeyCredentialManager().authorizationStateForPlatformCredentials {
@@ -984,6 +985,30 @@ final class Bench {
                 window.contentView = nil
             }
 
+        case "site":
+            // The site card for the tab on screen, or one step in on its
+            // connection, drawn off screen (see SiteCard.swift).
+            guard let path = request["path"] as? String else { answer(["error": "site needs a path"]); return }
+            guard let tab = browser.active, !tab.isBlank else { answer(["error": "no page on screen"]); return }
+            let deeper = request["security"] as? Bool == true
+            // On the ground: off screen there is no glass to stand on.
+            let host = NSHostingView(rootView: AnyView(SiteCard(browser: browser, tab: tab, deeper: deeper) {}.fixedSize().background(Palette.ground)))
+            host.frame = NSRect(origin: .zero, size: host.fittingSize)
+            let window = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
+            window.appearance = NSApp.effectiveAppearance
+            window.contentView = host
+            host.layoutSubtreeIfNeeded()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                host.frame = NSRect(origin: .zero, size: host.fittingSize)
+                guard let picture = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { answer(["error": "nothing drawn"]); return }
+                host.cacheDisplay(in: host.bounds, to: picture)
+                do {
+                    try picture.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+                    answer(["saved": path])
+                } catch { answer(["error": error.localizedDescription]) }
+                window.contentView = nil
+            }
+
         case "column":
             // The column of tabs, drawn off screen at its width, with what the
             // browser has now — the rows, the card for a new space, the dots.
@@ -1105,7 +1130,7 @@ final class Bench {
 
         default:
             answer(["error": "unknown command “\(verb)”", "commands": [
-                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "space", "strip", "column", "ui",
+                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "space", "strip", "column", "site", "ui",
             ]])
         }
     }
