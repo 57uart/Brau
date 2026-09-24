@@ -117,7 +117,13 @@ struct GroupBlock<Row: View>: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            GroupIcon(group: group)
+            // An icon when tabs wear theirs (Settings › Tabs › Tabs show);
+            // with letters, a tab row has none, and nor does a group's name —
+            // the bold name, the chevron and its tabs set in under it say
+            // which is which.
+            if browser.prefs.glyph == .icons {
+                GroupIcon(group: group)
+            }
             if browser.renamingGroup == group.id {
                 TextField("Group name", text: $draft)
                     .textFieldStyle(.plain)
