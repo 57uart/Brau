@@ -432,6 +432,11 @@ final class Bench {
             }
             // The column folded away, out for a look, and the lights with it (see Fold.swift).
             out["peek"] = browser.peekTab?.address?.absoluteString ?? ""
+            // Where the peek's page sits in the window, top-left origin, in points.
+            if let web = browser.peekTab?.built, let window = web.window {
+                let r = web.convert(web.bounds, to: nil)
+                out["peekFrame"] = [Int(r.minX), Int(window.contentLayoutRect.height - r.maxY), Int(r.width), Int(r.height)]
+            }
             out["folded"] = browser.folded
             out["peeking"] = browser.peeking
             out["sideHides"] = browser.prefs.sideHides
@@ -745,6 +750,21 @@ final class Bench {
                     }
                 }
             }
+
+        case "peek":
+            // A link's page in the peek panel over the tab in front, as a
+            // shift-click on it would open it (see Peek.swift); "close" puts
+            // it away. Only on a SEARCH_PROBE run.
+            guard Store.testing else { answer(["error": "peek only works on a --test run"]); return }
+            if request["url"] as? String == "close" {
+                browser.closePeek()
+                answer(["peek": ""])
+                return
+            }
+            guard let tab = browser.active, let text = request["url"] as? String, let url = URL(string: text)
+            else { answer(["error": "peek needs a tab in front and an address"]); return }
+            browser.peek(url, from: tab)
+            answer(["peek": url.absoluteString])
 
         case "pull":
             // Two fingers sideways over the page: DX points in STEPS scroll

@@ -468,7 +468,13 @@ struct ContentView: View {
             .overlay(alignment: .leading) { Fold(browser: browser, prefs: browser.prefs) }
             .overlay(alignment: .bottom) { bars }
             .overlay {
-                if let page = browser.peekTab { PeekPanel(browser: browser, tab: page) }
+                // Over the page only: the column, the strip and the bookmarks
+                // bar stay as they are, uncovered and in reach.
+                if let page = browser.peekTab {
+                    PeekPanel(browser: browser, tab: page)
+                        .padding(.leading, chrome.width)
+                        .padding(.top, chrome.height)
+                }
             }
             .overlay { field }
             .overlay { panels }
