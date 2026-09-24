@@ -9,16 +9,19 @@ within a second. ROADMAP.md is written from it (`./ideas md`).
     ./ideas all [STATUS]             every idea, or those with one status
     ./ideas find WORDS…              look for an idea before adding one
     ./ideas show ID
-    ./ideas add TITLE [DETAIL] [--now|--next|--later] [--status S] [--fix|--feature] [--from SRC…]
+    ./ideas add TITLE [DETAIL] --area AREA [--now|--next|--later] [--status S] [--fix|--feature] [--from SRC…]
     ./ideas from ID SRC…             one more person asked: add sources
     ./ideas start ID WHO             someone is building it now (WHO: "Office Search 3")
     ./ideas stop ID                  back on the list
     ./ideas done ID [VERSION]        on main: it goes out with the next version
-    ./ideas set ID KEY=VALUE…        title, detail, status, lane, kind, reason, version, by
+    ./ideas set ID KEY=VALUE…        title, detail, area, status, lane, kind, reason, version, by
     ./ideas ship VERSION             at release: everything done becomes shipped in VERSION
     ./ideas check                    every open issue and PR has its idea; nothing closed is still to do
     ./ideas md                       write ROADMAP.md from the list
 
+Titles are short, a few words: the page lists them one to a line and
+opens the detail on a click. Areas group them: passwords, extensions,
+video, tabs, speed, sites, interface, keyboard, import, security, platform.
 Sources: #123 (an issue or a pull request, looked up), email, x, message.
 Statuses: new, planned (with a lane: now, next, later), building, review
 (a pull request to review), ready (done, in the next version), shipped,
@@ -44,7 +47,8 @@ REPO = "driceroland/Search"
 PROJECT = "auvryubksvduljzkkdcj"
 STATUSES = ["building", "ready", "planned", "review", "call", "asked", "new", "declined", "shipped"]
 LANES = ["now", "next", "later"]
-FIELDS = {"title", "detail", "status", "lane", "kind", "reason", "version", "by"}
+FIELDS = {"title", "detail", "area", "status", "lane", "kind", "reason", "version", "by"}
+AREAS = ["passwords", "extensions", "video", "tabs", "speed", "sites", "interface", "keyboard", "import", "security", "platform"]
 
 # ── the database ─────────────────────────────────────────────────────────
 
@@ -136,7 +140,7 @@ def line(r):
     if r["status"] in ("ready", "shipped") and r.get("version"):
         extra = f"  ({r['version']})"
     src = sources_text(as_list(r["sources"]))
-    return f"{r['id']:>4}  {where:<14} {r['title']}" + (f"  [{src}]" if src else "") + extra
+    return f"{r['id']:>4}  {where:<14} {(r.get('area') or '?'):<10} {r['title']}" + (f"  [{src}]" if src else "") + extra
 
 def board():
     all_rows = rows(order="id")
@@ -312,7 +316,7 @@ def main(argv):
         if not args:
             sys.exit("./ideas add TITLE [DETAIL] [--now|--next|--later] [--status S] [--fix|--feature] [--from SRC…]")
         title, rest = args[0], args[1:]
-        detail, lane, status, kind, froms = "", None, None, "feature", []
+        detail, lane, status, kind, area, froms = "", None, None, "feature", None, []
         i = 0
         while i < len(rest):
             a = rest[i]
@@ -320,6 +324,8 @@ def main(argv):
                 lane = a[2:]
             elif a == "--status":
                 i += 1; status = rest[i]
+            elif a == "--area":
+                i += 1; area = rest[i]
             elif a in ("--fix", "--feature"):
                 kind = a[2:]
             elif a == "--from":
@@ -328,10 +334,14 @@ def main(argv):
             else:
                 detail = a
             i += 1
+        if area not in AREAS:
+            sys.exit(f"--area is one of: {', '.join(AREAS)}.")
+        if len(title) > 48:
+            print(f"A long title ({len(title)} characters): keep it to a few words, the rest goes in DETAIL.", file=sys.stderr)
         status = status or ("planned" if lane else "new")
         r = sql(
-            "insert into search_ideas (title, detail, status, lane, kind, sources) values "
-            f"({lit(title)}, {lit(detail)}, {lit(status)}, {lit(lane)}, {lit(kind)}, {lit(json.dumps(froms))}::jsonb) returning *"
+            "insert into search_ideas (title, detail, area, status, lane, kind, sources) values "
+            f"({lit(title)}, {lit(detail)}, {lit(area)}, {lit(status)}, {lit(lane)}, {lit(kind)}, {lit(json.dumps(froms))}::jsonb) returning *"
         )
         print(line(r[0]))
     elif cmd == "from":
@@ -356,6 +366,8 @@ def main(argv):
             key, _, value = pair.partition("=")
             if key not in FIELDS:
                 sys.exit(f"Can't set {key!r}: {', '.join(sorted(FIELDS))}.")
+            if key == "area" and value not in AREAS:
+                sys.exit(f"area is one of: {', '.join(AREAS)}.")
             changes.append(f"{key} = {lit(value) if value != '' else 'null'}")
         r = sql(f"update search_ideas set {', '.join(changes)} where id = {int(args[0])} returning *")
         print(line(r[0]))
