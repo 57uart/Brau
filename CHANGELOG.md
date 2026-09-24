@@ -30,6 +30,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Fixed
 
+- An extension's sign-in is finished only by the tab it began in, or a window that tab opened; another page that goes to an address shaped like the sign-in's answer is no longer handed to the extension as that answer. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#132](https://github.com/driceroland/Search/pull/132))
 - A right-click on an image offers Search's own menu to open, copy or download it only when its address is http, https, data or blob; for any other address a page names, WebKit's own menu shows instead. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#131](https://github.com/driceroland/Search/pull/131))
 - `./bench` answers only for the tabs it opened itself: a script on this Mac can no longer read, click in, or put to sleep a tab you are using. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#130](https://github.com/driceroland/Search/pull/130))
 - An extension package that carries a symbolic link is refused at install, the rewriting of its pages and its background script no longer follow one, and a manifest path that points outside its own folder is left alone. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#129](https://github.com/driceroland/Search/pull/129))

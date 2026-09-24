@@ -3020,13 +3020,23 @@ enum ExtensionAuth {
         }
     }
 
-    /// True when the address is an extension's OAuth redirect, which is then
-    /// handed over and never loaded.
-    static func intercept(_ url: URL, browser: Browser) -> Bool {
+    /// True when the address is an extension's OAuth redirect arriving in
+    /// the tab that began the sign-in, which is then handed over and never
+    /// loaded. Any page can go to an address shaped like one of these, and
+    /// what it carries would be delivered as the flow's answer: only the
+    /// tab the flow was started in may finish it, or a window that tab's
+    /// page opened, since some providers finish the sign-in in a popup.
+    static func intercept(_ url: URL, browser: Browser, from webView: WKWebView) -> Bool {
         guard let host = url.host()?.lowercased(), host.hasSuffix(".chromiumapp.org") else { return false }
         let id = String(host.dropLast(".chromiumapp.org".count))
-        guard let entry = waiting.removeValue(forKey: id) else { return false }
+        guard let entry = waiting[id], let from = browser.tab(for: webView),
+              from.id == entry.tab || from.opener == entry.tab
+        else { return false }
+        waiting.removeValue(forKey: id)
         entry.finish(.success(url))
+        // The popup, when the answer came in one, goes with the flow's tab:
+        // left behind, it would hold a redirect that never loads.
+        if from.id != entry.tab { browser.close(from) }
         if let tab = browser.tabs.first(where: { $0.id == entry.tab }) { browser.close(tab) }
         return true
     }

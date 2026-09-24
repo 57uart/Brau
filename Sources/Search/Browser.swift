@@ -1853,7 +1853,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
 
         // An extension's OAuth sign-in coming back: the address is the
         // answer, handed to the extension, and never loaded.
-        if ExtensionAuth.intercept(url, browser: self) {
+        if ExtensionAuth.intercept(url, browser: self, from: webView) {
             decisionHandler(.cancel)
             return
         }
