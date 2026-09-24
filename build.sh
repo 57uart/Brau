@@ -163,7 +163,15 @@ echo "built: $APP ($VERSION, build $BUILD)"
 if [ "$STEP" = "install" ]; then
   # Quit the way ⌘Q does, so the session is saved and comes back.
   osascript -e 'quit app id "com.farchan.mnml"' 2>/dev/null || true
-  while pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null; do sleep 0.2; done
+  # A dialog left open in mnml keeps it from quitting; say so rather than wait for ever.
+  for _ in $(seq 1 50); do
+    pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null || break
+    sleep 0.2
+  done
+  if pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null; then
+    echo "mnml didn't quit — close any dialog in it (or quit it), then run this again" >&2
+    exit 1
+  fi
   rm -rf "/Applications/$NAME.app"
   ditto "$APP" "/Applications/$NAME.app"
   open "/Applications/$NAME.app"
