@@ -421,6 +421,7 @@ final class Tab: ObservableObject, Identifiable {
         // the window with a picture of the last one behind it; ours is in
         // PageView, and it moves nothing but a disc.
         web.allowsBackForwardNavigationGestures = false
+        Swipe.calm(web)
         web.onPull = { [weak self] pull in self?.pull = pull }
         web.onTouch = { [weak self] in self?.uncover() }
         web.searchName = { [weak self] in self?.searchName?() }
@@ -549,9 +550,6 @@ final class Tab: ObservableObject, Identifiable {
                 WKUserScript(source: AutoScroll.script, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: Web.world)
             )
         }
-        controller.addUserScript(
-            WKUserScript(source: Swipe.calm, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: Web.world)
-        )
         // Every frame: a swipe over an embedded map is the map's, and only the
         // map's own document can say so.
         controller.addUserScript(
