@@ -21,6 +21,7 @@ in [ROADMAP.md](ROADMAP.md).
 - The shortcuts card lists ⇧⌘C, Copy Address, which only the Tabs menu showed. Thanks [@merttopuz](https://github.com/merttopuz) ([#182](https://github.com/driceroland/Search/pull/182)), and [@olllayor](https://github.com/olllayor) for asking ([#176](https://github.com/driceroland/Search/issues/176))
 - The Settings sidebar's colour reaches the divider at the top and bottom, without rounded inner corners. Thanks [@sunniekapar](https://github.com/sunniekapar) ([#222](https://github.com/driceroland/Search/pull/222))
 - An extension whose worker is a module gets Search's Chrome layer before its own imports run, not after them, and finds `navigator.userAgentData` there, which Chrome has and WebKit doesn't. Content scripts can call `chrome.runtime` functions on their own, as Chrome allows (`const connect = chrome.runtime.connect; connect()`), where WebKit answered nothing. Vimium C's background starts, where WebKit failed to load it; it doesn't answer its keys yet. Thanks [@karadoganyi](https://github.com/karadoganyi) ([#170](https://github.com/driceroland/Search/pull/170))
+- A floating video stays inside its window on players that centre it with a transform, and Netflix subtitles stay visible over the picture. Thanks [@K-NRS](https://github.com/K-NRS) ([#190](https://github.com/driceroland/Search/pull/190))
 
 ## 1.0.3 — 24 September 2026
 
