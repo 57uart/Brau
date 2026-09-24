@@ -256,6 +256,11 @@ final class Tab: ObservableObject, Identifiable {
     var onSearch: ((Tab, String) -> Void)?
     /// "Add to Search" was pressed on the Chrome Web Store page this tab shows.
     var onStoreAdd: ((Tab) -> Void)?
+    /// Sent where this tab's view can't go: from an extension's page to the
+    /// web or another extension, or from the web to an extension's page.
+    /// WebKit keeps each kind of view to its own pages, so the tab has to be
+    /// swapped for one built for the address (see Browser.replace).
+    var onCross: ((Tab, URL) -> Void)?
     /// The middle button was let go over a link. The browser opens it in a
     /// tab of its own beside this one, without leaving the page you are on.
     var onMiddleClick: ((Tab, URL) -> Void)?
@@ -660,6 +665,15 @@ final class Tab: ObservableObject, Identifiable {
     }
 
     func go(to url: URL) {
+        // Judged by the page it shows, not by how it was made: a tab an
+        // extension's page opened with window.open is built from that
+        // extension's configuration too. A tab with no page yet was just
+        // built for where it is going, so it goes there.
+        if let onCross, let here = built?.url ?? address,
+           Browser.extensionHost(of: here) != Browser.extensionHost(of: url) {
+            onCross(self, url)
+            return
+        }
         // Set straight away rather than waiting for the observer: the tab has to
         // stop being blank in the same frame the field disappears, or the empty
         // state flashes back for an instant on its way out.

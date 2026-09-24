@@ -1255,7 +1255,16 @@ final class Browser: NSObject, ObservableObject {
     /// an extension sending a website's tab to one of its own pages.
     func replace(_ tab: Tab, going url: URL) {
         guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
-        let fresh = Tab(bench: tab.bench, configuration: Browser.extensionConfiguration(for: url))
+        // A private tab stays private, and keeps its own sign-ins when it
+        // had them; an extension's page it showed was in that extension's
+        // store, so going back to the web takes a new private one.
+        let page = Browser.extensionConfiguration(for: url)
+        let fresh = if tab.shy {
+            Tab(shy: true, bench: tab.bench, configuration: page
+                ?? Web.configuration(shy: true, store: tab.store.isPersistent ? nil : tab.store))
+        } else {
+            Tab(bench: tab.bench, configuration: page)
+        }
         prepare(fresh)
         let wasActive = activeID == tab.id
         tabs[index] = fresh
@@ -1270,6 +1279,13 @@ final class Browser: NSObject, ObservableObject {
     static func page(_ url: URL) -> URL {
         if #available(macOS 15.4, *) { return Extensions.current(url) }
         return url
+    }
+
+    /// The extension an address belongs to, or nil for the web.
+    static func extensionHost(of url: URL) -> String? {
+        guard #available(macOS 15.4, *) else { return nil }
+        let url = Extensions.current(url)
+        return url.scheme == Extensions.scheme ? url.host : nil
     }
 
     /// The configuration for an extension's page, or nil for anything else.
@@ -1512,6 +1528,7 @@ final class Browser: NSObject, ObservableObject {
             self.open(url, foreground: true, from: tab)
         }
         tab.onStoreAdd = { [weak self] tab in self?.addFromStore(tab) }
+        tab.onCross = { [weak self] tab, url in self?.replace(tab, going: url) }
         // The middle button on a link opens it beside the tab you are on, as
         // it does in every other browser (see MiddleRelay).
         // From a private tab, the new one is private too, as for ⌘-click.
