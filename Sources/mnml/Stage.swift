@@ -222,6 +222,12 @@ struct WindowSetup: NSViewRepresentable {
         @available(*, unavailable)
         required init?(coder: NSCoder) { fatalError() }
 
+        /// Here only to learn the window, never to be clicked: set behind or
+        /// over something that spans the whole window — Fold's layer does,
+        /// since its band runs along the top — a view that answered would
+        /// take every click meant for the page and the tabs.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             guard let window else { return }
@@ -247,8 +253,6 @@ struct DragStrip: NSViewRepresentable {
     var below: CGFloat = 0
     /// The run at the trailing end that belongs to a button.
     var trailing: CGFloat = 0
-    /// How much of the bottom belongs to whatever is drawn there.
-    var footer: CGFloat = 0
 
     func makeNSView(context: Context) -> NSView { Strip() }
 
@@ -256,14 +260,12 @@ struct DragStrip: NSViewRepresentable {
         (view as? Strip)?.reserved = reserved
         (view as? Strip)?.below = below
         (view as? Strip)?.trailing = trailing
-        (view as? Strip)?.footer = footer
     }
 
     private final class Strip: NSView {
         var reserved: CGFloat = 0
         var below: CGFloat = 0
         var trailing: CGFloat = 0
-        var footer: CGFloat = 0
 
         private var pressed: NSEvent?
         private var moved = false
@@ -278,7 +280,7 @@ struct DragStrip: NSViewRepresentable {
             let inside = convert(point, from: superview)
             guard inside.x >= reserved, inside.x <= bounds.width - trailing else { return nil }
             // AppKit measures up from the bottom; the reservation is from the top.
-            guard bounds.height - inside.y >= below, inside.y >= footer else { return nil }
+            guard bounds.height - inside.y >= below else { return nil }
             return super.hitTest(point)
         }
 
@@ -332,8 +334,10 @@ struct DragStrip: NSViewRepresentable {
 /// It lives inside the title bar rather than in the window's content, because
 /// the title bar draws above everything the app puts on screen.
 final class RestingLights: NSView {
+    /// Set again each time the title bar is laid out — every change of
+    /// screen, key window or size — and redrawn only when they moved.
     var spots: [CGRect] = [] {
-        didSet { needsDisplay = true }
+        didSet { if spots != oldValue { needsDisplay = true } }
     }
 
     override func draw(_ dirty: NSRect) {

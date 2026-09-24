@@ -11,6 +11,8 @@ enum Session {
         var pin: String?
         /// Its tab group, if any. Absent in sessions from before groups.
         var group: UUID?
+        /// The name you gave the tab, when you gave it one.
+        var name: String?
     }
 
     struct Shape: Codable {

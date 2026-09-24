@@ -183,11 +183,10 @@ struct Command: Identifiable {
             Command("edit.findPrevious", "Find Previous", .edit, KeyCombo("g", shift: true), "The match before this one.") { $0.look(forward: false) },
 
             Command("view.sidebar", "Show Tabs in Sidebar", .view, KeyCombo("s", shift: true), "Tabs down the left, or across the top.") { $0.toggleSidebar() },
-            .when("view.fold", "Hide Sidebar", .view, KeyCombo("s"), "Folds the column of tabs away so the page has the whole window; the left edge brings it back. Only with tabs in a sidebar.") { browser in
-                guard browser.prefs.sidebar else { return false }
-                browser.toggleFold()
-                return true
-            },
+            Command("view.fold", "Hide Sidebar or Tab Bar", .view, KeyCombo("s"), "Folds the column of tabs, or the strip across the top, away so the page has the whole window; the edge brings it back.") { $0.toggleFold() },
+            Command("view.inspector", "Web Inspector", .view, KeyCombo("i", option: true), "The page's code, styles and network, beside it.") { $0.toggleInspector() },
+            Command("view.console", "JavaScript Console", .view, KeyCombo("j", option: true), "The Web Inspector, open at its console.") { $0.showConsole() },
+            Command("view.inspect", "Inspect Element", .view, KeyCombo("c", option: true), "Point at something on the page to see it in the Web Inspector.") { $0.inspectElement() },
             Command("view.reload", "Reload Page", .view, KeyCombo("r"), "Loads the page again.") { $0.reload() },
             Command("view.reader", "Reading Mode", .view, KeyCombo("r", shift: true), "Just the article, set for reading.") { $0.toggleReader() },
             Command("view.float", "Float Video", .view, KeyCombo("p", shift: true), "The video on this page in a window of its own, above everything.") { $0.toggleFloat() },
@@ -199,8 +198,18 @@ struct Command: Identifiable {
 
             Command("tabs.back", "Back", .tabs, KeyCombo("["), "The page before this one.") { $0.back() },
             Command("tabs.forward", "Forward", .tabs, KeyCombo("]"), "The page after this one.") { $0.forward() },
-            Command("tabs.backArrow", "Back (Arrow)", .tabs, KeyCombo("left"), "Back, for hands that never learned the brackets.") { $0.back() },
-            Command("tabs.forwardArrow", "Forward (Arrow)", .tabs, KeyCombo("right"), "Forward, for hands that never learned the brackets.") { $0.forward() },
+            // Not while typing: there ⌘← and ⌘→ move the caret, in a page's
+            // fields and the browser's own alike.
+            .when("tabs.backArrow", "Back (Arrow)", .tabs, KeyCombo("left"), "Back, for hands that never learned the brackets.") { browser in
+                guard !browser.editingText else { return false }
+                browser.back()
+                return true
+            },
+            .when("tabs.forwardArrow", "Forward (Arrow)", .tabs, KeyCombo("right"), "Forward, for hands that never learned the brackets.") { browser in
+                guard !browser.editingText else { return false }
+                browser.forward()
+                return true
+            },
             Command("tabs.next", "Next Tab", .tabs, KeyCombo("]", shift: true), "The tab to the right, round to the first.") { $0.step(1) },
             Command("tabs.previous", "Previous Tab", .tabs, KeyCombo("[", shift: true), "The tab to the left, round to the last.") { $0.step(-1) },
             Command("tabs.search", "Search Tabs…", .tabs, KeyCombo("k"), "Finds an open tab by name. Held down, each press steps down the list; letting go of ⌘ goes there.") { browser in
@@ -233,6 +242,11 @@ struct Command: Identifiable {
             .when("tabs.toggleGroup", "Collapse or Expand Group", .tabs, nil, "Folds the group the tab you're on is in, keeping that tab showing, or opens it.") { browser in
                 guard let group = browser.active?.group else { return false }
                 browser.toggleOpen(group)
+                return true
+            },
+            .when("tabs.rename", "Rename Tab", .tabs, nil, "Gives the tab a name of your own, kept whatever page it shows.") { browser in
+                guard let tab = browser.active else { return false }
+                browser.beginTabRename(tab)
                 return true
             },
             Command("tabs.duplicate", "Duplicate Tab", .tabs, KeyCombo("d"), "The same page again, in a tab beside this one.") { $0.duplicate() },
@@ -396,5 +410,13 @@ final class KeyRouter {
         guard let handed, PageView.same(handed.event, event) else { return nil }
         self.handed = nil
         return handed.id
+    }
+}
+
+extension Browser {
+    /// Text being typed into — a page's field, or one of the browser's own —
+    /// where keys like ⌘← move the caret instead of the page.
+    var editingText: Bool {
+        active?.typing == true || NSApp.keyWindow?.firstResponder is NSTextView
     }
 }

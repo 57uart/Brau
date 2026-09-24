@@ -182,6 +182,34 @@ struct SettingsPanel: View {
                 }
             }
             Rule()
+            Line("Search with", searchDetail) {
+                Picker("", selection: $prefs.engine) {
+                    ForEach(Engine.allCases) { engine in
+                        Text(engine.title).tag(engine)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
+            if prefs.engine == .custom {
+                ZStack(alignment: .leading) {
+                    if prefs.customEngine.isEmpty {
+                        Text("https://example.com/search?q=%s")
+                            .foregroundStyle(Palette.muted.opacity(0.8))
+                    }
+                    TextField("", text: $prefs.customEngine)
+                        .textFieldStyle(.plain)
+                        .foregroundStyle(Palette.ink)
+                }
+                .font(.system(size: 12.5))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .padding(.horizontal, 14)
+                .padding(.bottom, 11)
+            }
+            Rule()
             Line("Appearance", "Light, dark, or whatever the Mac is doing — pages follow it too") {
                 Segmented(options: Look.allCases.map { ($0, $0.title) }, selection: $prefs.look)
             }
@@ -190,14 +218,22 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.autocorrect)
             }
             Rule()
-            Line("Web Inspector", "Inspect Element in a page's right-click menu, to look at its code, styles and network") {
-                Switch(on: $prefs.inspects)
+            Line("Scroll with the middle button", "Click the wheel on a page, then move the mouse up or down to scroll, as on Windows. Click again to stop") {
+                Switch(on: $prefs.autoScroll)
             }
             Rule()
             Line("Let a script drive mnml", "A local socket for testing. Its tabs open beside yours with a flask on them and never take over — see ./bench") {
                 Switch(on: $prefs.bench)
             }
         }
+    }
+
+    private var searchDetail: String {
+        guard prefs.engine == .custom else { return "Where words that aren't an address go" }
+        guard Engine.accepts(prefs.customEngine) else {
+            return "An http or https address with %s where the words go. Until then, Google"
+        }
+        return "Words go to \(prefs.engine.name(custom: prefs.customEngine))"
     }
 
     // MARK: - tabs
@@ -209,6 +245,12 @@ struct SettingsPanel: View {
                     get: { prefs.sidebar },
                     set: { on in withAnimation(Motion.glide) { prefs.sidebar = on } }
                 ))
+            }
+            if prefs.sidebar {
+                Rule()
+                Line("Hide the sidebar until the pointer reaches the edge", "The page takes the whole window; push against its left edge for the tabs. ⌘S keeps them out.") {
+                    Switch(on: $prefs.sideHides)
+                }
             }
             Rule()
             Line("Tabs show", "Beside the title, and on a pinned square") {
@@ -230,11 +272,15 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.dragHaptics)
             }
             Rule()
+            Line("Show how far you've read", "The tab you're on fills with grey as you scroll down the page") {
+                Switch(on: $prefs.showsReading)
+            }
+            Rule()
             Line("Sleep tabs you aren't using", "After half an hour away they come back where you left them. Pinned tabs, sound, calls and anything typed stay awake.") {
                 Switch(on: $prefs.sleepsTabs)
             }
             Rule()
-            Line("Spaces", "Separate sets of tabs, each with its own sign-ins, switched with ⌃1–⌃9 or the dot beside the tabs. Mission Control's own ⌃1–⌃9, if you turned them on, take those keys first.") {
+            Line("Spaces", "Separate sets of tabs, signed in where the others are or starting afresh, switched with ⌃1–⌃9, two fingers sideways over the column, or the space's icon. Mission Control's own ⌃1–⌃9, if you turned them on, take those keys first.") {
                 Switch(on: $prefs.usesSpaces)
             }
         }
@@ -270,9 +316,11 @@ struct SettingsPanel: View {
                 Rule()
                 Line(
                     "Offer passkeys",
-                    prefs.passkeysPossible
-                        ? "Touch ID or an iCloud passkey, on sites that offer one"
-                        : "Needs an Apple entitlement this build doesn't have — off keeps sites to the password"
+                    !prefs.passkeysPossible
+                        ? "Needs an Apple entitlement this build doesn't have — off keeps sites to the password"
+                        : Passkeys.access == .denied
+                        ? "macOS was told no — System Settings › Privacy & Security › Passkeys Access for Web Browsers"
+                        : "Touch ID or an iCloud passkey, on sites that offer one"
                 ) {
                     Switch(on: $prefs.passkeys)
                 }
