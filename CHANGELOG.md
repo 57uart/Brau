@@ -32,6 +32,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Fixed
 
+- Hiding or showing the sidebar, or the tab bar across the top, no longer judders along the right of the window: the page slides with them and is laid out once at its new size, instead of on every frame of the slide — which also let it overshoot the window for a moment. Thanks [@infomiho](https://x.com/infomiho) for the report
 - Session Buddy opens when its button is pressed. It listens at start for a window changing size, which Chrome reports and WebKit doesn't, and gave up there before listening for its button; Search now offers that event too. Thanks [@andupoto](https://x.com/andupoto) for the report
 - ⌘⇧V in a text field pastes without formatting, as it does in Chrome — in a Google Doc too, and in a box inside another site's frame. Away from a text field it is still Paste and Go. About lists it as Paste and go. ([#138](https://github.com/driceroland/Search/issues/138)) Thanks [@Aaditya2605](https://github.com/Aaditya2605) ([#144](https://github.com/driceroland/Search/pull/144))
 - A floating panel no longer loses the cursor over a page that hides it: the six sheets in `App.swift` — Settings, History, Downloads, Bookmarks, Welcome, Passwords — now own an arrow cursor rect of their own, so a page's `cursor: none` stops at the panel's edge instead of painting invisible air across the whole sheet. Thanks [@0froq](https://github.com/0froq) ([#149](https://github.com/driceroland/Search/pull/149))
