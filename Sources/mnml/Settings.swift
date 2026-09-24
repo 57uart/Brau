@@ -226,6 +226,10 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.groupsLinks)
             }
             Rule()
+            Line("Feel tabs as you drag them", "A light tap of the trackpad as a tab passes another, a firmer one into or out of a group. Force Touch trackpads only.") {
+                Switch(on: $prefs.dragHaptics)
+            }
+            Rule()
             Line("Sleep tabs you aren't using", "After half an hour away they come back where you left them. Pinned tabs, sound, calls and anything typed stay awake.") {
                 Switch(on: $prefs.sleepsTabs)
             }

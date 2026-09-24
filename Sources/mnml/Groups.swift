@@ -378,3 +378,15 @@ extension Browser {
         chosen = Set(tabs[min(start, end)...max(start, end)].filter { $0.pin == nil }.map(\.id))
     }
 }
+
+// MARK: - feeling the drag
+
+extension Browser {
+    /// A tap of a Force Touch trackpad: light as a dragged tab passes
+    /// another, firmer as it goes into or out of a group, is about to make
+    /// one, or a group crosses the line (Settings › Tabs).
+    func feelDrag(firm: Bool = false) {
+        guard prefs.dragHaptics else { return }
+        NSHapticFeedbackManager.defaultPerformer.perform(firm ? .levelChange : .alignment, performanceTime: .now)
+    }
+}

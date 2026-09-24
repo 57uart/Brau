@@ -297,6 +297,7 @@ struct SideBar: View {
                     withAnimation(Motion.settle) {
                         browser.move(tab, to: target)
                     }
+                    browser.feelDrag()
                 }
             }
             .onEnded { _ in
@@ -516,7 +517,10 @@ struct SideBar: View {
             merging = nil
             if let over {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if mergeCandidate == over, self.held != nil { withAnimation(Motion.quick) { merging = over } }
+                    if mergeCandidate == over, self.held != nil {
+                    withAnimation(Motion.quick) { merging = over }
+                    browser.feelDrag(firm: true)
+                }
                 }
             }
         }
@@ -526,18 +530,29 @@ struct SideBar: View {
         let row = rows.map(\.row)
         withAnimation(Motion.settle) {
             switch held {
-            case .tabs(let ids, _):
+            case .tabs(let ids, let lead):
                 let place = GroupDrop.tab(at: gap, in: row)
                 let mark = String(describing: place)
                 guard mark != placed else { return }
+                let first = placed == nil
                 placed = mark
+                let before = browser.tabs.first { $0.id == lead }?.group
+                let order = browser.tabs.map(\.id)
                 browser.place(browser.tabs.filter { ids.contains($0.id) }, place)
+                let after = browser.tabs.first { $0.id == lead }?.group
+                if before != after { browser.feelDrag(firm: true) }
+                else if !first, browser.tabs.map(\.id) != order { browser.feelDrag() }
             case .group(let id):
                 let landing = GroupDrop.group(at: gap, in: row)
                 let mark = String(describing: landing)
                 guard mark != placed else { return }
+                let first = placed == nil
                 placed = mark
+                let wasPinned = browser.group(id)?.pinned
+                let order = browser.tabs.map(\.id)
                 browser.placeGroup(id, pinned: landing.pinned, before: landing.before)
+                if browser.group(id)?.pinned != wasPinned { browser.feelDrag(firm: true) }
+                else if !first, browser.tabs.map(\.id) != order { browser.feelDrag() }
             }
         }
     }

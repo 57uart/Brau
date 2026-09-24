@@ -61,6 +61,11 @@ final class Preferences: ObservableObject {
     @Published var groupsLinks: Bool {
         didSet { store.set(groupsLinks, forKey: "tabs.groupLinks") }
     }
+    /// A tap of the trackpad as a dragged tab passes another. On unless
+    /// turned off; nothing on a mouse.
+    @Published var dragHaptics: Bool {
+        didSet { store.set(dragHaptics, forKey: "tabs.dragHaptics") }
+    }
     @Published var mruSwitcher: Bool {
         didSet { store.set(mruSwitcher, forKey: "tabs.mru") }
     }
@@ -149,6 +154,7 @@ final class Preferences: ObservableObject {
         sleepsTabs = store.object(forKey: "tabs.sleep") as? Bool ?? true
         mruSwitcher = store.object(forKey: "tabs.mru") as? Bool ?? true
         groupsLinks = store.bool(forKey: "tabs.groupLinks")
+        dragHaptics = store.object(forKey: "tabs.dragHaptics") as? Bool ?? true
         shielded = store.object(forKey: "shield") as? Bool ?? true
         // Offered by default only in a build that can actually do them —
         // one with Apple's browser entitlement and its profile embedded. A

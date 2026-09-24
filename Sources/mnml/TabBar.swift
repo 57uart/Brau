@@ -171,6 +171,7 @@ struct TabBar: View {
                 let target = min(max(0, from + moved), browser.tabs.count - 1)
                 if target != index {
                     withAnimation(Motion.settle) { browser.move(tab, to: target) }
+                    browser.feelDrag()
                 }
             }
             .onEnded { _ in
