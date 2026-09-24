@@ -1930,8 +1930,33 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         if ["http", "https", "file", "about", "data", "blob", "chrome-extension", "webkit-extension"].contains(scheme) {
             decisionHandler(.allow)
         } else {
-            NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
+            handOff(url, scheme: scheme, action: action, from: webView)
+        }
+    }
+
+    /// An address for another app — mail, a call, a meeting. Only the page
+    /// itself may ask, or a click inside one of its frames; a frame that
+    /// asks on its own (an advertisement, say) is ignored. And the other app
+    /// opens only once you have said so, as in Safari — except a mail or
+    /// phone link you just clicked on, which is exactly what it says.
+    private func handOff(_ url: URL, scheme: String, action: WKNavigationAction, from webView: WKWebView) {
+        let clicked = action.navigationType == .linkActivated
+        guard action.targetFrame?.isMainFrame ?? true || clicked else { return }
+        guard let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return }
+        if clicked, ["mailto", "tel"].contains(scheme) {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        let name = FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")
+        let alert = NSAlert()
+        alert.messageText = "Open \u{201C}\(name)\u{201D}?"
+        alert.informativeText = "\(webView.url?.host() ?? "This page") wants to open \(name)."
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        Dialogs.show(alert, over: webView) { answer in
+            guard answer == .alertFirstButtonReturn else { return }
+            NSWorkspace.shared.open(url)
         }
     }
 

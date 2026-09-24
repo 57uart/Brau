@@ -2273,6 +2273,7 @@ enum ExtensionShims {
         "topSites": "topSites",
         "browsingData": "browsingData",
         "readingList": "readingList",
+        "userScripts": "userScripts",
     ]
 
     /// What this extension asked for: the names in its manifest and any
@@ -2871,7 +2872,10 @@ enum ExtensionShims {
             if let inline = source["code"] as? String {
                 code += inline + "\n;\n"
             } else if let file = source["file"] as? String,
-                      let text = try? String(contentsOf: folder.appendingPathComponent(file.trimmingCharacters(in: CharacterSet(charactersIn: "/"))), encoding: .utf8) {
+                      // One of the extension's own files, and nothing outside
+                      // its folder: a name is resolved before it is read.
+                      let path = inside(file, of: folder),
+                      let text = try? String(contentsOf: path, encoding: .utf8) {
                 code += text + "\n;\n"
             }
         }
