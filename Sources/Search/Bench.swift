@@ -1181,9 +1181,16 @@ final class Bench {
         }
     }
 
+    /// The tab a request names, among the ones the bench opened itself. The
+    /// bench is how this browser is driven while somebody is using it, and
+    /// reading, clicking or sleeping in one of their tabs is not part of
+    /// that: a script here is meant for tabs marked with the flask. A
+    /// SEARCH_PROBE run has nobody's tabs in it, so there any tab answers,
+    /// as for `tap` and `select`: a popup a bench page opened with
+    /// `window.open` carries no flask and would be out of reach otherwise.
     private func find(_ request: [String: Any], in browser: Browser) -> Tab? {
         guard let ref = (request["id"] as? String)?.lowercased(), !ref.isEmpty else { return nil }
-        return browser.tabs.first { $0.id.uuidString.lowercased().hasPrefix(ref) }
+        return browser.tabs.first { (Store.testing || $0.bench) && $0.id.uuidString.lowercased().hasPrefix(ref) }
     }
 
     private func missing(_ request: [String: Any]) -> [String: Any] {

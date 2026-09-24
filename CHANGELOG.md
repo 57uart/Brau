@@ -30,6 +30,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Fixed
 
+- `./bench` answers only for the tabs it opened itself: a script on this Mac can no longer read, click in, or put to sleep a tab you are using. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#130](https://github.com/driceroland/Search/pull/130))
 - An extension package that carries a symbolic link is refused at install, the rewriting of its pages and its background script no longer follow one, and a manifest path that points outside its own folder is left alone. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#129](https://github.com/driceroland/Search/pull/129))
 - Extensions: the Chrome APIs Search answers itself (history, bookmarks, downloads, the open tabs, closed tabs, top sites, browsing data, the reading list) are now held to what the extension's own manifest asked for, where the only checks before were inside the injected script that runs beside the extension's own code. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#128](https://github.com/driceroland/Search/pull/128))
 - With an extension's page as the new tab, the field works again: an address or a search typed there went nowhere and the tab stayed on the extension's page. Bookmarks, history and pasting an address into that tab had the same trouble, as did any tab showing an extension's page, one it opened included. A private tab sent from an extension's page to a website stays private. Thanks [@meta-boy](https://github.com/meta-boy) ([#42](https://github.com/driceroland/Search/pull/42))
