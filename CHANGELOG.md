@@ -33,6 +33,7 @@ in [ROADMAP.md](ROADMAP.md).
 - ⌘W no longer bounces between two pins: with only pins open, putting down the last one awake leaves an empty tab instead of waking the other again. Thanks [@armin-ahmadii](https://github.com/armin-ahmadii) ([#125](https://github.com/driceroland/Search/pull/125))
 - History keeps two articles or two videos of the same site apart: an address's query (`?id=`, `?v=`) is part of what makes it a page of its own, so the second Hacker News story or YouTube video you open no longer takes the first one's place. Thanks [@yuxino](https://github.com/yuxino) ([#154](https://github.com/driceroland/Search/pull/154))
 - A video put full screen, on YouTube and the like, fills the screen with its picture rather than black with the sound playing on. Thanks [@StefanTodorov32](https://github.com/StefanTodorov32) ([#220](https://github.com/driceroland/Search/pull/220))
+- The back, forward and reload buttons have a little room between them. Thanks [@DagimAlemayehuu](https://github.com/DagimAlemayehuu) ([#209](https://github.com/driceroland/Search/pull/209)), and [@olllayor](https://github.com/olllayor) for asking ([#185](https://github.com/driceroland/Search/issues/185))
 
 ## 1.0.2 — 24 September 2026
 
