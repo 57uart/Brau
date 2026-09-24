@@ -1977,6 +1977,16 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             decisionHandler(.allow)
             return
         }
+        // A server that says "attachment" means a file to keep, even one
+        // WebKit could show. Gmail's download button loads the attachment
+        // into a hidden frame and counts on exactly that: a PDF shown there
+        // instead was the button doing nothing at all.
+        if let http = response.response as? HTTPURLResponse,
+           let disposition = http.value(forHTTPHeaderField: "Content-Disposition"),
+           disposition.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("attachment") {
+            decisionHandler(.download)
+            return
+        }
         decisionHandler(response.canShowMIMEType ? .allow : .download)
     }
 
