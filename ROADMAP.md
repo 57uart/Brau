@@ -37,7 +37,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 
 ## Being built now
 
-- [ ] **Bitwarden with a self-hosted server** Signing in from the extension to a self-hosted Bitwarden server says the user doesn't exist, while the same address works in a tab. To fix before 1.0.3. *(X)*
+- [ ] **Links from other apps skip the pins** A link opened from another app never lands among the pins. *([#219](https://github.com/driceroland/Search/issues/219))*
 
 ## Done, in the next version
 
@@ -59,6 +59,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [x] **Pop-ups need a click** *([#207](https://github.com/driceroland/Search/pull/207))*
 - [x] **Folded tab bar gets its own ground** The tab bar folded away with ⌘S comes back on a ground of its own: the page no longer shows through between the tabs.
 - [x] **Install updates by hand** Settings › About › Install updates on its own, on by default. Off, Search still says when a version is out and installs it when you press Install. *(email)*
+- [x] **Bitwarden with a self-hosted server** Signing in from the extension to a self-hosted Bitwarden server says the user doesn't exist, while the same address works in a tab. To fix before 1.0.3. *(X)*
 
 ## Now — fixes for the next update
 
@@ -69,7 +70,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Passkeys under the sign-in field** A site's passkey button brings up the Mac's passkey sheet now; next is the suggestion Safari shows as you click into a sign-in field. *([#17](https://github.com/driceroland/Search/issues/17), X)*
 - [ ] **iCloud Passwords** Pairing asks for the code twice ([#217](https://github.com/driceroland/Search/pull/217) fixes the first code); one person says it doesn't work at all, details asked. *([#17](https://github.com/driceroland/Search/issues/17), email ×2, [#217](https://github.com/driceroland/Search/pull/217))*
 - [ ] **Window stutters between screens** Dragging the window from one screen to another stutters. Needs a trace recorded on two screens. *(X)*
-- [ ] **Web processes start before the window** The web process pool is made before the first window; check whether 1.0.2's launch order already covers it. *([#157](https://github.com/driceroland/Search/issues/157))*
 - [ ] **⌘F lands on the back button** On some pages ⌘F focuses the back button instead of the find field. *([#172](https://github.com/driceroland/Search/issues/172))*
 - [ ] **Wrong icons on some tabs** Meta AI shows Google's G, Swagger UI stays on a letter. [#216](https://github.com/driceroland/Search/pull/216) fixes it; two small changes asked before it goes in. *([#181](https://github.com/driceroland/Search/issues/181), [#216](https://github.com/driceroland/Search/pull/216))*
 - [ ] **Window flashes at its default size** At launch the window opens at its default size for an instant, then takes its saved size. [#204](https://github.com/driceroland/Search/pull/204) tried a fix; in a test it lost the saved size instead, so changes were asked. *([#202](https://github.com/driceroland/Search/issues/202), [#204](https://github.com/driceroland/Search/pull/204))*
@@ -106,7 +106,6 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 - [ ] **Address bar commands** A word like "settings" reaches the app itself. *([#212](https://github.com/driceroland/Search/pull/212))*
 - [ ] **Hold a swipe to pick from history** Hold a back or forward swipe to pick a page from history. *([#191](https://github.com/driceroland/Search/pull/191))*
 - [ ] **Tabs load when shown** Tabs opened together don't all load at once: they wait until they're shown. *([#195](https://github.com/driceroland/Search/issues/195), [#196](https://github.com/driceroland/Search/pull/196))*
-- [ ] **Links from other apps skip the pins** A link opened from another app never lands among the pins. *([#219](https://github.com/driceroland/Search/issues/219))*
 - [ ] **Don't reopen tabs at launch** A switch to start with a fresh window instead of last time's tabs. *(email)*
 - [ ] **Pins as a list** Pins as a list, in rows instead of small squares. Also: site icons on pins without them in the tab list (one setting does both today), and Arc-style pinned rows above New Tab. *([#183](https://github.com/driceroland/Search/issues/183), email ×2)*
 - [ ] **Pins shared by every space** Pins shared by every space, plus each space's own, as in Arc. *(email)*
@@ -131,6 +130,7 @@ in it is stale. Whoever works on Search keeps it that way, with `./ideas`
 
 ## Drice's call
 
+- [ ] **Web processes start before the window** The web process pool is made before the first window; check whether 1.0.2's launch order already covers it. *([#157](https://github.com/driceroland/Search/issues/157))*
 - [ ] **Double-click for a new tab** A double-click below the tabs opens a new one. *([#162](https://github.com/driceroland/Search/issues/162), [#167](https://github.com/driceroland/Search/pull/167))*
 - [ ] **Tab bar in the page's colour** The tab bar or title bar in the page's own colour. *([#158](https://github.com/driceroland/Search/issues/158), [#168](https://github.com/driceroland/Search/pull/168), [#25](https://github.com/driceroland/Search/pull/25))*
 - [ ] **Pins go back to their page** A pin goes back to the page it was pinned at when you put it down. *([#141](https://github.com/driceroland/Search/issues/141))*
