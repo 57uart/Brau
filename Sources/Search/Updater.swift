@@ -32,15 +32,18 @@ final class Updater: ObservableObject {
     /// Where the file lives. SEARCH_FEED, for a test run, points somewhere
     /// else — and is the only way plain http is accepted, so a build that
     /// was not handed the variable only ever listens to the real site.
+    /// SEARCH_FEED points a test run at a feed of its own. Only a test run:
+    /// the browser people use reads Office Commun's feed whatever the
+    /// environment it was started with says.
     static let feed: URL = {
-        if let set = ProcessInfo.processInfo.environment["SEARCH_FEED"], let url = URL(string: set) {
+        if overridden, let set = ProcessInfo.processInfo.environment["SEARCH_FEED"], let url = URL(string: set) {
             return url
         }
         return URL(string: "https://officecommun.com/search/appcast.json")!
     }()
 
     private static var overridden: Bool {
-        ProcessInfo.processInfo.environment["SEARCH_FEED"] != nil
+        Store.testing && ProcessInfo.processInfo.environment["SEARCH_FEED"] != nil
     }
 
     struct Release: Equatable {
