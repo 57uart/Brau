@@ -98,6 +98,12 @@ final class Passkeys: NSObject {
     }
 
     func perform(_ body: [String: Any], from caller: Caller, answer: @escaping ([String: Any]) -> Void) {
+        // Switched off in Settings: what reaches here came through an
+        // extension's page script, which the patch runs ahead of whatever the
+        // setting — the site hears no, as it would from a browser without them.
+        guard FormRelay.passkeysOffered else {
+            return refuse(answer, "NotAllowedError", "The operation either timed out or was not allowed.")
+        }
         let kind = body["kind"] as? String ?? ""
         let scheme = caller.origin.protocol.lowercased()
         let host = caller.origin.host.lowercased()
