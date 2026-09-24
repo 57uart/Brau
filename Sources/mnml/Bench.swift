@@ -33,6 +33,11 @@ final class Bench {
     /// as separate from the real one as everything else it keeps.
     static var socket: URL { Store.file("bench.sock") }
 
+    /// The column's rows and where its list sits in the window, for
+    /// `dragrow` (see SideBar).
+    static var rowFrames: [RowKey: CGRect] = [:]
+    static var listOrigin: CGPoint = .zero
+
     /// True while something is listening.
     private(set) var running = false
 
@@ -656,6 +661,49 @@ final class Bench {
                     answer(["saved": path])
                 } catch { answer(["error": error.localizedDescription]) }
                 window.contentView = nil
+            }
+
+        case "dragrow":
+            // A real drag of a row in the column — a tab, or a group by its
+            // name — by DY points, in STEPS moves a frame apart, as a hand
+            // does. Test runs only: it rearranges your tabs.
+            guard Store.testing else { answer(["error": "dragrow only works on a --test run"]); return }
+            let target = (request["id"] as? String ?? "").lowercased()
+            let dy = request["dy"] as? Double ?? 0
+            let steps = max(1, request["steps"] as? Int ?? 12)
+            let key = Bench.rowFrames.keys.first { key in
+                switch key {
+                case .tab(let id), .header(let id): return id.uuidString.lowercased().hasPrefix(target)
+                case .line: return false
+                }
+            }
+            guard let key, let frame = Bench.rowFrames[key], let window = Links.window else {
+                answer(["error": "no row \(target) in the column"]); return
+            }
+            // A window behind others takes its first click as a way in, not
+            // as a click: in front first, as a hand would have it.
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            let height = window.contentView?.bounds.height ?? window.frame.height
+            let start = CGPoint(x: Bench.listOrigin.x + frame.midX, y: Bench.listOrigin.y + frame.midY)
+            func post(_ type: NSEvent.EventType, _ y: CGFloat) {
+                guard let event = NSEvent.mouseEvent(
+                    with: type, location: NSPoint(x: start.x, y: height - y),
+                    modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+                    clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1
+                ) else { return }
+                NSApp.postEvent(event, atStart: false)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { post(.leftMouseDown, start.y) }
+            for step in 1...steps {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35 + 0.016 * Double(step)) {
+                    post(.leftMouseDragged, start.y + CGFloat(dy) * CGFloat(step) / CGFloat(steps))
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35 + 0.016 * Double(steps + 2)) {
+                post(.leftMouseUp, start.y + CGFloat(dy))
+                answer(["dragged": target, "from": [Int(start.x), Int(start.y)], "by": dy])
             }
 
         case "group":

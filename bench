@@ -11,6 +11,7 @@
     ./bench key ID TEXT                press keys on a tab as real key events — --test runs only
     ./bench press CODE CHARS [MODS…]   press a key on the whole app (cmd shift ctrl opt) — --test runs only
     ./bench tap ID SELECTOR [MODS…]    a real mouse click on an element (or text=Words), cmd shift opt ctrl held — --test runs only
+    ./bench dragrow ID DY [STEPS]      a real drag of a column row (tab, or group by its name) — --test runs only
     ./bench group [make TAB…|add G TAB…|fold G|open G|pin G|unpin G|separate G|close G|name G NAME|colour G N]
                                        tab groups, and the row, after — --test runs only
     ./bench window PATH                the whole window as drawn now, to a PNG — --test runs only
@@ -178,6 +179,10 @@ def main(argv):
         if not 1 <= len(args) <= 2: sys.exit("usage: bench strip PATH [WIDTH]")
         request["path"] = os.path.abspath(args[0])
         if len(args) == 2: request["width"] = float(args[1])
+    elif verb == "dragrow":
+        if len(args) < 2: sys.exit("usage: bench dragrow ID DY [STEPS]")
+        request["id"], request["dy"] = args[0], float(args[1])
+        if len(args) > 2: request["steps"] = int(args[2])
     elif verb == "group":
         request["args"] = args
     elif verb == "column":

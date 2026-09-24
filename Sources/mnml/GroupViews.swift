@@ -64,6 +64,9 @@ struct GroupBlock<Row: View>: View {
     /// The name picked up and moved: the whole group goes with it.
     let drag: (DragGesture.Value) -> Void
     let drop: () -> Void
+    /// Off for the copy drawn under the hand while the group is dragged:
+    /// only the group in the list says where it is.
+    var reports = true
 
     @State private var hovering = false
     @State private var listing = false
@@ -139,7 +142,7 @@ struct GroupBlock<Row: View>: View {
             hovering = over
             peekList(over)
         }
-        .report(.header(group.id))
+        .modifier(Reporting(key: .header(group.id), on: reports))
         .gesture(
             DragGesture(minimumDistance: 5, coordinateSpace: .named("column"))
                 .onChanged { value in
@@ -333,5 +336,13 @@ enum GroupIconPicker {
         let copy = image.copy() as! NSImage
         copy.size = NSSize(width: 16, height: 16)
         return copy
+    }
+}
+
+private struct Reporting: ViewModifier {
+    let key: RowKey
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.report(key) } else { content }
     }
 }

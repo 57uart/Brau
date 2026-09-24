@@ -364,7 +364,20 @@ struct SideBar: View {
             .padding(.top, SideBar.gap)
         }
         .coordinateSpace(name: "column")
-        .onPreferenceChange(RowFrames.self) { frames = $0 }
+        .onPreferenceChange(RowFrames.self) { frames = $0; Bench.rowFrames = $0 }
+        .background {
+            // Where the list sits in the window, for the bench's drags.
+            GeometryReader { box in
+                Color.clear
+                    .onAppear { Bench.listOrigin = box.frame(in: .global).origin }
+                    .onChange(of: box.frame(in: .global).origin) { _, origin in Bench.listOrigin = origin }
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            ghost
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transaction { $0.animation = nil }
+        }
         .animation(Motion.settle, value: browser.groups)
     }
 
@@ -374,12 +387,11 @@ struct SideBar: View {
         case .tab(let tab):
             tabRow(tab)
         case .group(let group, let members):
+            // Held, the group keeps its place in the list, unseen, while a
+            // copy of it follows the hand (see `ghost`).
             GroupBlock(browser: browser, group: group, members: members, row: { tabRow($0) },
                        drag: { value in drag(.group(group.id), value) }, drop: finishDrag)
-                .offset(y: held == .group(group.id) ? lift : 0)
-                .transaction { if held == .group(group.id) { $0.animation = nil } }
-                .zIndex(held == .group(group.id) ? 1 : 0)
-                .shadow(color: .black.opacity(held == .group(group.id) ? 0.14 : 0), radius: 12, y: 4)
+                .opacity(held == .group(group.id) ? 0 : 1)
         }
     }
 
@@ -403,11 +415,11 @@ struct SideBar: View {
                 .strokeBorder(Palette.ink.opacity(merging == tab.id ? 0.45 : 0), lineWidth: 1.5)
         )
         .report(.tab(tab.id))
-        .offset(y: lifted ? lift : 0)
-        // Under the hand exactly; only the others glide.
-        .transaction { if lifted { $0.animation = nil } }
-        .zIndex(lifted ? 1 : 0)
-        .shadow(color: .black.opacity(lifted ? 0.14 : 0), radius: 12, y: 4)
+        // Held, it keeps its place in the list, unseen — that place is what
+        // is measured, and moves as the list rearranges — while a copy
+        // follows the hand (see `ghost`). Drawing the row itself shifted
+        // measured the shift too, and chasing it never ended.
+        .opacity(lifted ? 0 : 1)
         .gesture(
             DragGesture(minimumDistance: 5, coordinateSpace: .named("column"))
                 .onChanged { value in
@@ -451,11 +463,31 @@ struct SideBar: View {
         }
     }
 
-    /// How far the held rows are drawn from where the list has put them,
-    /// so they stay under the hand as the list rearranges around them.
-    private var lift: CGFloat {
-        guard let held, let frame = frames[key(of: held)] else { return 0 }
-        return pointer - grab - frame.minY
+    /// What is held, drawn where the hand is, over the list.
+    @ViewBuilder
+    private var ghost: some View {
+        switch held {
+        case .tabs(_, let lead)?:
+            if let tab = browser.tabs.first(where: { $0.id == lead }) {
+                SideRow(browser: browser, prefs: prefs, tab: tab, live: false, pill: pill, close: {})
+                    .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
+                    .offset(y: pointer - grab)
+                    .allowsHitTesting(false)
+            }
+        case .group(let id)?:
+            if let group = browser.group(id) {
+                GroupBlock(browser: browser, group: group, members: browser.members(of: id), row: { tab in
+                    SideRow(browser: browser, prefs: prefs, tab: tab, live: false, pill: pill, close: {})
+                }, drag: { _ in }, drop: {}, reports: false)
+                .background(Palette.ground.opacity(0.92), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .shadow(color: .black.opacity(0.16), radius: 12, y: 4)
+                .offset(y: pointer - grab)
+                .allowsHitTesting(false)
+            }
+        case nil:
+            EmptyView()
+        }
     }
 
     /// Picked up and moved: the list rearranges around it as it goes,
