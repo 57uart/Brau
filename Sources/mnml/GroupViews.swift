@@ -78,25 +78,37 @@ struct GroupBlock<Row: View>: View {
         return members.filter { $0.id == group.peek }
     }
 
-    /// Washed in its colour while anything under the name shows, as Dia does.
-    private var washed: Bool { !shown.isEmpty }
+    /// The pointer anywhere over the group.
+    @State private var over = false
+
+    /// In its colour: a pinned group always, as Dia does; any other while
+    /// the pointer is on it.
+    private var coloured: Bool { group.pinned || over }
+
+    /// Washed in its colour while coloured and there is more than the name.
+    private var washed: Bool { coloured && !shown.isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             header
             ForEach(shown) { tab in
-                row(tab).padding(.leading, 10)
+                row(tab).padding(.leading, 12)
             }
         }
-        .padding(washed ? 4 : 0)
+        // The wash reaches out around the rows rather than pushing them in:
+        // the name and the tabs stay where they are, level with the tabs
+        // outside any group, folded or open, coloured or not.
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(group.tint.opacity(washed ? 0.12 : 0))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(group.tint.opacity(washed ? 0.22 : 0), lineWidth: 1)
+                )
+                .padding(-4)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(group.tint.opacity(washed ? 0.22 : 0), lineWidth: 1)
-        )
+        .onHover { over = $0 }
+        .animation(Motion.quick, value: over)
         .animation(Motion.settle, value: group.open)
         .animation(Motion.settle, value: shown.map(\.id))
     }
@@ -120,10 +132,10 @@ struct GroupBlock<Row: View>: View {
                 Text(group.name)
                     .font(.system(size: 12.5, weight: .semibold))
                     .lineLimit(1)
-                    .foregroundStyle(group.colour == 0 ? Palette.ink : group.tint)
+                    .foregroundStyle(coloured && group.colour != 0 ? group.tint : Palette.ink)
                 Image(systemName: group.open ? "chevron.down" : "chevron.right")
                     .font(.system(size: 8.5, weight: .semibold))
-                    .foregroundStyle((group.colour == 0 ? Palette.muted : group.tint).opacity(hovering ? 1 : 0.7))
+                    .foregroundStyle((coloured && group.colour != 0 ? group.tint : Palette.muted).opacity(hovering ? 1 : 0.7))
             }
             Spacer(minLength: 0)
         }
