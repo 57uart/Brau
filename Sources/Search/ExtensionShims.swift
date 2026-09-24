@@ -43,8 +43,15 @@ enum ExtensionShims {
         SHA256.hash(data: Data((script + PasskeyRelay.page).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined() + (Store.testing ? "-test" : "")
     }()
 
-    nonisolated static func prepare(_ folder: URL) throws {
+    /// `fresh`: a package just unpacked or copied in. What only Search writes
+    /// beside an extension — which permissions it added, which shim it
+    /// carries — is Search's to say, never the package's: anything by those
+    /// names that came inside it goes before a word of it is read.
+    nonisolated static func prepare(_ folder: URL, fresh: Bool = false) throws {
         let files = FileManager.default
+        if fresh {
+            for name in [stamp, ".search-added"] { try? files.removeItem(at: folder.appendingPathComponent(name)) }
+        }
         let stampURL = folder.appendingPathComponent(stamp)
         if (try? String(contentsOf: stampURL, encoding: .utf8)) == version { return }
         defer { try? version.write(to: stampURL, atomically: true, encoding: .utf8) }
