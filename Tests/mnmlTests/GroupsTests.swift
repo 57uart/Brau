@@ -36,6 +36,21 @@ final class GroupsTests: XCTestCase {
         XCTAssertTrue(out.groups.isEmpty, "a group with no tabs is gone")
     }
 
+    func testAGroupDownToOneTabGoes() {
+        // Made with one tab, to be added to: kept.
+        let one = GroupOrder.settle([Item(id: ids[0], pinned: false, group: g)], [TabGroup(id: g, name: "G", colour: 1)])
+        XCTAssertEqual(one.groups.map(\.id), [g])
+        XCTAssertEqual(one.groups[0].size, 1)
+        // Two tabs, then one leaves: the group goes, the last tab stays, loose, in place.
+        let two = GroupOrder.settle([Item(id: ids[0], pinned: false, group: g), Item(id: ids[1], pinned: false, group: g)],
+                                    [TabGroup(id: g, name: "G", colour: 1)])
+        XCTAssertEqual(two.groups[0].size, 2)
+        let left = GroupOrder.settle([Item(id: ids[2], pinned: false, group: nil), Item(id: ids[1], pinned: false, group: g)], two.groups)
+        XCTAssertTrue(left.groups.isEmpty)
+        XCTAssertEqual(left.items.map(\.id), [ids[2], ids[1]])
+        XCTAssertNil(left.items[1].group)
+    }
+
     func testPeekClearedWhenItsTabLeaves() {
         var group = TabGroup(id: g, name: "G", colour: 1, open: false)
         group.peek = ids[0]

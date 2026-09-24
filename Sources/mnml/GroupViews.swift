@@ -70,6 +70,8 @@ struct GroupBlock<Row: View>: View {
     @State private var inList = false
     /// Clicked since the pointer arrived: no list until it leaves and comes back.
     @State private var clicked = false
+    /// Where the name is in the window, for the list to open beside it.
+    @State private var spot: CGRect = .zero
     @State private var draft = ""
     @FocusState private var naming: Bool
 
@@ -164,15 +166,34 @@ struct GroupBlock<Row: View>: View {
         // stays put while rows move between groups; a drag held by the row
         // itself was lost when the row moved, and never let go.
         .modifier(Reporting(key: .header(group.id), on: reports))
-        .contextMenu { GroupMenu(browser: browser, group: group) }
-        .popover(isPresented: $listing, arrowEdge: .trailing) {
-            GroupList(browser: browser, group: group, members: members) { inside in
-                inList = inside
-                if !inside { peekList(false) }
-            } done: {
-                listing = false
+        .background {
+            GeometryReader { box in
+                Color.clear
+                    .onAppear { spot = box.frame(in: .global) }
+                    .onChange(of: box.frame(in: .global)) { _, frame in spot = frame }
             }
         }
+        .contextMenu { GroupMenu(browser: browser, group: group) }
+        // In a panel of its own beside the name, not a popover: a popover
+        // takes the first click outside it only to close, and the click on
+        // the name that should also open the group was lost to it.
+        .onChange(of: listing) { _, showing in
+            guard reports else { return }
+            if showing {
+                GroupListPanel.shared.show(
+                    GroupList(browser: browser, groupID: group.id) { inside in
+                        inList = inside
+                        if !inside { peekList(false) }
+                    } done: {
+                        listing = false
+                    },
+                    for: group.id, beside: spot
+                )
+            } else {
+                GroupListPanel.shared.hide(group.id)
+            }
+        }
+        .onDisappear { GroupListPanel.shared.hide(group.id) }
     }
 
     /// The list of a folded group's tabs, a moment after the pointer arrives
@@ -195,8 +216,7 @@ struct GroupBlock<Row: View>: View {
 /// A folded group's tabs, from its name: a new one, and each with its ×.
 private struct GroupList: View {
     @ObservedObject var browser: Browser
-    let group: TabGroup
-    let members: [Tab]
+    let groupID: TabGroup.ID
     let inside: (Bool) -> Void
     let done: () -> Void
 
@@ -204,14 +224,16 @@ private struct GroupList: View {
         VStack(alignment: .leading, spacing: 2) {
             Quiet(icon: "plus", title: "New Tab") {
                 done()
-                browser.newTab(in: group.id)
+                browser.newTab(in: groupID)
             }
-            ForEach(members) { tab in
+            ForEach(browser.members(of: groupID)) { tab in
                 ListRow(browser: browser, tab: tab, done: done)
             }
         }
         .padding(6)
         .frame(width: 260)
+        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         .onHover(perform: inside)
     }
 
@@ -357,5 +379,47 @@ private struct Reporting: ViewModifier {
     let on: Bool
     func body(content: Content) -> some View {
         if on { content.report(key) } else { content }
+    }
+}
+
+/// The small window a folded group's list opens in, beside its name. It
+/// never takes the key or a click meant for anything else.
+@MainActor
+final class GroupListPanel {
+    static let shared = GroupListPanel()
+    private var panel: NSPanel?
+    private var showing: TabGroup.ID?
+
+    /// `spot` is the name's frame in the window, top-left based.
+    func show<Content: View>(_ content: Content, for id: TabGroup.ID, beside spot: CGRect) {
+        guard let window = Links.window, let contentView = window.contentView else { return }
+        let host = NSHostingView(rootView: content.fixedSize())
+        host.frame.size = host.fittingSize
+        let panel = self.panel ?? {
+            let made = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+            made.isOpaque = false
+            made.backgroundColor = .clear
+            made.hasShadow = true
+            made.level = .floating
+            made.isReleasedWhenClosed = false
+            made.hidesOnDeactivate = true
+            return made
+        }()
+        self.panel = panel
+        panel.contentView = host
+        panel.setContentSize(host.fittingSize)
+        panel.appearance = window.effectiveAppearance
+        let corner = NSPoint(x: spot.maxX + 8, y: contentView.bounds.height - spot.minY + 6)
+        panel.setFrameTopLeftPoint(window.convertPoint(toScreen: corner))
+        if panel.parent == nil { window.addChildWindow(panel, ordered: .above) }
+        panel.orderFront(nil)
+        showing = id
+    }
+
+    func hide(_ id: TabGroup.ID) {
+        guard showing == id, let panel else { return }
+        panel.parent?.removeChildWindow(panel)
+        panel.orderOut(nil)
+        showing = nil
     }
 }

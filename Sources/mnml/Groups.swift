@@ -33,6 +33,9 @@ struct TabGroup: Identifiable, Codable, Equatable {
     /// when it was folded, until it is opened and folded again. Not saved —
     /// tabs come back from a session as new tabs.
     var peek: UUID?
+    /// How many tabs it had when last settled. A group that had two or
+    /// more and is down to one is no longer a group. Not saved.
+    var size = 0
 
     private enum CodingKeys: String, CodingKey { case id, name, colour, icon, pinned, open }
 
@@ -62,11 +65,20 @@ enum GroupOrder {
     /// its first one was. Pinned squares belong to no group; a group with no
     /// tabs left is gone, and so is a peek at a tab that left it.
     static func settle(_ items: [Item], _ groups: [TabGroup]) -> (items: [Item], groups: [TabGroup]) {
-        let known = Set(groups.map(\.id))
-        let items = items.map { item -> Item in
+        var known = Set(groups.map(\.id))
+        var items = items.map { item -> Item in
             var item = item
             if item.pinned || !(item.group.map(known.contains) ?? true) { item.group = nil }
             return item
+        }
+        // Down to one tab from two or more: the group goes, and its last
+        // tab stays where it is, on its own. One made with a single tab, to
+        // be added to, keeps it.
+        var counts: [UUID: Int] = [:]
+        for item in items { if let group = item.group { counts[group, default: 0] += 1 } }
+        for group in groups where counts[group.id] == 1 && group.size >= 2 {
+            known.remove(group.id)
+            for index in items.indices where items[index].group == group.id { items[index].group = nil }
         }
         let byID = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, $0) })
         var members: [UUID: [Item]] = [:]
@@ -90,7 +102,8 @@ enum GroupOrder {
 
         let order = pinnedGroups + appearance.filter { byID[$0]?.pinned != true }
         let settled = order.compactMap { id -> TabGroup? in
-            guard var group = byID[id] else { return nil }
+            guard known.contains(id), var group = byID[id] else { return nil }
+            group.size = members[id]?.count ?? 0
             if let peek = group.peek, !(members[id]?.contains { $0.id == peek } ?? false) { group.peek = nil }
             return group
         }
