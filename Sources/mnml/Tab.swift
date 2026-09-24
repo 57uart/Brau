@@ -73,6 +73,17 @@ enum Web {
         typealias Setter = @convention(c) (AnyObject, Selector, Bool) -> Void
         unsafeBitCast(preferences.method(for: set), to: Setter.self)(preferences, set, on)
     }
+
+    static func preferDisplayRefreshRate(_ preferences: WKPreferences) {
+        let list = NSSelectorFromString("_features")
+        let set = NSSelectorFromString("_setEnabled:forFeature:")
+        guard WKPreferences.responds(to: list), preferences.responds(to: set),
+              let features = WKPreferences.perform(list)?.takeUnretainedValue() as? [NSObject],
+              let feature = features.first(where: { $0.value(forKey: "key") as? String == "PreferPageRenderingUpdatesNear60FPSEnabled" })
+        else { return }
+        typealias Setter = @convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void
+        unsafeBitCast(preferences.method(for: set), to: Setter.self)(preferences, set, false, feature)
+    }
 }
 
 @MainActor
@@ -303,6 +314,7 @@ final class Tab: ObservableObject, Identifiable {
         self.shy = shy
         self.bench = bench
         self.configuration = configuration ?? Web.configuration(shy: shy)
+        Web.preferDisplayRefreshRate(self.configuration.preferences)
     }
 
     private func build() -> PageView {
