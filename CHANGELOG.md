@@ -27,6 +27,7 @@ in [ROADMAP.md](ROADMAP.md).
 - An extension loaded from a folder asks again when Reload finds it wants more than you agreed to, the same question an update already asks, and keeps the version you had if you say no; Reload used to take the new access without asking. Thanks [@karadoganyi](https://github.com/karadoganyi) ([#161](https://github.com/driceroland/Search/pull/161)), and [@Hyp4tia](https://github.com/Hyp4tia) for the report ([#135](https://github.com/driceroland/Search/issues/135))
 - The tab bar folded away with ⌘S comes back over the page on a ground of its own, as the column does: the page no longer shows through between the tabs, and its shadow falls along the bar's edge instead of from every title and icon.
 - ⌘W no longer bounces between two pins: with only pins open, putting down the last one awake leaves an empty tab instead of waking the other again. Thanks [@armin-ahmadii](https://github.com/armin-ahmadii) ([#125](https://github.com/driceroland/Search/pull/125))
+- History keeps two articles or two videos of the same site apart: an address's query (`?id=`, `?v=`) is part of what makes it a page of its own, so the second Hacker News story or YouTube video you open no longer takes the first one's place. Thanks [@yuxino](https://github.com/yuxino) ([#154](https://github.com/driceroland/Search/pull/154))
 
 ## 1.0.2 — 24 September 2026
 
