@@ -171,6 +171,8 @@ final class Browser: NSObject, ObservableObject {
     /// ⌘S: the column folded away, and slid out over the page for a look
     /// while it is (see Fold.swift).
     @Published var folded = false
+    /// Whether the other layout, column or strip, was folded when left.
+    var otherFolded: Bool?
     @Published var peeking = false
 
     /// The address field, raised over a page by ⌘L. A blank tab shows it

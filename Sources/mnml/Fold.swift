@@ -132,11 +132,13 @@ struct Fold: View {
             window.standardWindowButton(.closeButton)?.superview?.isHidden = lightsOff
         })
         .onChange(of: lightsOff) { _, _ in hideLights() }
-        // Back to the strip and then to the column again: the column comes
-        // back as it rests — whole, not folded from a time nobody remembers,
-        // unless Settings says it rests folded.
-        .onChange(of: prefs.sidebar) { _, _ in
-            browser.folded = prefs.sidebar && prefs.sideHides
+        // Over to the strip and back: each comes back folded or not as it
+        // was left. The first time, the column rests as Settings says and
+        // the strip shows.
+        .onChange(of: prefs.sidebar) { _, column in
+            let back = browser.otherFolded ?? (column && prefs.sideHides)
+            browser.otherFolded = browser.folded
+            browser.folded = back
             browser.peeking = false
         }
         .onChange(of: prefs.sideHides) { _, hides in
