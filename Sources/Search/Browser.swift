@@ -351,10 +351,25 @@ final class Browser: NSObject, ObservableObject {
         relist()
     }
 
+    /// A password copied is asked for the way one shown is. It goes on this
+    /// Mac's clipboard only, not to your other devices', marked concealed
+    /// and transient, which is what clipboard managers go by to keep it out
+    /// of their history, and it is taken off again after a minute and a
+    /// half unless something else has been copied since.
     func copy(_ login: Login) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(login.password, forType: .string)
-        announce("Password copied")
+        Vault.prove("copy the password for \(login.host)") { [weak self] ok in
+            guard ok, let self else { return }
+            let board = NSPasteboard.general
+            board.prepareForNewContents(with: .currentHostOnly)
+            board.setString(login.password, forType: .string)
+            board.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+            board.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
+            let copied = board.changeCount
+            DispatchQueue.main.asyncAfter(deadline: .now() + 90) {
+                if board.changeCount == copied { board.clearContents() }
+            }
+            announce("Password copied")
+        }
     }
 
     /// What came back from another browser's store, put in the keychain.
