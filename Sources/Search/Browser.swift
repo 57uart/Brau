@@ -1265,12 +1265,7 @@ final class Browser: NSObject, ObservableObject {
             Tab(configuration: page)
         }
         prepare(tab)
-        let here = atEnd ? nil : tabs.firstIndex { $0.id == activeID }
-        // Beside the tab you are on — but never among the pins, which the
-        // new tab isn't one of: from a pin, it comes first after them. A link
-        // from another app, with a pin in front, landed between two (#219).
-        let place = here.map { max($0 + 1, pinnedCount) } ?? tabs.count
-        tabs.insert(tab, at: place)
+        tabs.insert(tab, at: atEnd ? tabs.count : placeForNew())
         tab.go(to: url)
         if foreground {
             leaving()
@@ -1460,6 +1455,15 @@ final class Browser: NSObject, ObservableObject {
     func showRow(_ row: [Tab], active: Tab.ID?) {
         tabs = row
         activeID = active ?? row.first?.id
+    }
+
+    /// Where a new tab goes: beside the tab you are on — but never among the
+    /// pins, which a new tab isn't one of: from a pin, it comes first after
+    /// them. A link from another app, with a pin in front, landed between two
+    /// (#219).
+    func placeForNew() -> Int {
+        guard let here = tabs.firstIndex(where: { $0.id == activeID }) else { return tabs.count }
+        return max(here + 1, pinnedCount)
     }
 
     /// A tab made outside the row — a peek being kept — put in it at `index`.

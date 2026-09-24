@@ -212,6 +212,10 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.peeksLinks)
             }
             Rule()
+            Line("Open links from other apps in a small window", "To read and close, or keep with Open in Search (⌘O)") {
+                Switch(on: $prefs.littleLinks)
+            }
+            Rule()
             Line("Show where links go", "Point at a link and its address shows at the bottom of the page") {
                 Switch(on: $prefs.showsLinks)
             }
