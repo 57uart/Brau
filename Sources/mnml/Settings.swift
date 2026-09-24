@@ -218,6 +218,10 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.autocorrect)
             }
             Rule()
+            Line("Peek at a link with a shift-click", "Its page opens in a panel over the one you're reading. Escape puts it away; the other button keeps it as a tab") {
+                Switch(on: $prefs.peeksLinks)
+            }
+            Rule()
             Line("Show where links go", "Point at a link and its address shows at the bottom of the page") {
                 Switch(on: $prefs.showsLinks)
             }
@@ -232,6 +236,10 @@ struct SettingsPanel: View {
             Rule()
             Line("Flick the floating video to a corner", "Two fingers on it send it to the corner or edge they point at, instead of pushing it along. Dragging still puts it anywhere") {
                 Switch(on: $prefs.floatFlicks)
+            }
+            Rule()
+            Line("Float the video when you switch tabs", "A video playing on YouTube and the like comes out into its floating window when you go to another tab, and back when you return. ⇧⌘P still floats one by hand") {
+                Switch(on: $prefs.floatsOnLeave)
             }
             Rule()
             Line("Float the video when you switch apps", "A video playing on the site you're on comes out into its floating window as another app comes to the front, and goes back into its tab when you return") {
@@ -294,6 +302,10 @@ struct SettingsPanel: View {
             Rule()
             Line("Feel tabs as you drag them", "A tap of the trackpad as a tab passes another, a double one into or out of a group. Force Touch trackpads only.") {
                 Switch(on: $prefs.dragHaptics)
+            }
+            Rule()
+            Line("Show the bookmarks bar", "Your bookmarks in a row above the page, folders opening as menus. It folds away with the tabs") {
+                Switch(on: $prefs.bookmarksBar)
             }
             Rule()
             Line("Show how far you've read", "The tab you're on fills with grey as you scroll down the page") {
@@ -453,6 +465,10 @@ struct SettingsPanel: View {
             Card {
                 Line(versionTitle, versionDetail) { versionControl }
                 Rule()
+                Line("Install updates on its own", "Off, mnml still looks once a day and tells you, and installs only when you press Install") {
+                    Switch(on: $prefs.installsUpdates)
+                }
+                Rule()
                 Line("Found something wrong?", "Opens a draft with the version already in it") {
                     Pill("Send Feedback") { Links.writeFeedback() }
                 }
@@ -487,7 +503,7 @@ struct SettingsPanel: View {
         case .none: return "Updates"
         case .fetching(let next): return "mnml \(next.version) is downloading…"
         case .ready(let next): return "mnml \(next.version) is ready"
-        case .offered(let next): return "mnml \(next.version) is out"
+        case .offered(let next), .waiting(let next): return "mnml \(next.version) is out"
         }
     }
 
@@ -502,6 +518,8 @@ struct SettingsPanel: View {
             return next.notes ?? "It's there the next time you open mnml"
         case .offered(let next):
             return next.notes ?? "Open the disk image, the same as the first time"
+        case .waiting(let next):
+            return next.notes ?? "Checked and put in place when you press Install"
         }
     }
 
@@ -524,6 +542,8 @@ struct SettingsPanel: View {
                 browser.tuning = false
                 browser.open(next.dmg, foreground: true)
             }
+        case .waiting:
+            Pill("Install", filled: true) { updater.install() }
         }
     }
 

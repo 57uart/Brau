@@ -16,7 +16,7 @@
                                        tab groups, and the row, after — --test runs only
     ./bench snapshot PATH              the whole window as drawn now, to a PNG — --test runs only
     ./bench text ID                    the page's text
-    ./bench eval ID JS                 run JavaScript, print what it returns
+    ./bench eval ID JS [search]        run JavaScript, print what it returns; search: in Search's own world
     ./bench click ID SELECTOR
     ./bench type ID SELECTOR TEXT
     ./bench submit ID SELECTOR         the form around SELECTOR
@@ -24,6 +24,7 @@
     ./bench close ID | all             only tabs the bench opened
     ./bench probe                      the window's own state: panels, modal, windows
     ./bench extensions                 installed extensions, loaded or not, with their warnings
+    ./bench site PATH [security]       the site card for the tab on screen, drawn to a PNG
     ./bench ext-add ID|LINK [--yes]    install from the Chrome Web Store (--yes only in a --test run)
     ./bench ext-folder PATH [--yes]    install an unpacked extension
     ./bench ext-press ID               press its button
@@ -38,6 +39,10 @@
     ./bench ext-remove ID
     ./bench strip PATH [WIDTH]         the row of tabs across the top, drawn off screen to a PNG
     ./bench column PATH [HEIGHT]       the column of tabs, drawn off screen to a PNG
+    ./bench consent [grant|revoke]     test run: the mark Settings' bench switch leaves in the keychain, in this
+                                       world's own account — whether it is there, before and after
+    ./bench fold PATH [WIDTH]          test run: the folded strip or column out over the page (ui folded on,
+                                       ui peek on), drawn off screen over red — red shows where the page would
     ./bench space [new NAME [fresh]|go N|delete|swipe DX|hold DX|release|move N]
                                        test run: the spaces, a new one (signed in with the others, or fresh),
                                        switch to the Nth, delete this one,
@@ -50,18 +55,20 @@
     ./bench field TEXT [type] [go]     test run: TEXT pasted into the address field (type: a key at a time),
                                        each timed until the window has caught up; go: then Return, timed
                                        until the page is loading
+    ./bench pull DX [STEPS] [MS]       test run: two fingers DX points sideways over the page (back is +) — where it went
     ./bench keyeq CHARS CODE [shift]   test run: ⌘CHARS pressed while the page has the keyboard — who took it
     ./bench menu [open]                test run: the Bookmarks menu as it is about to open, and its first
                                        folder (open: its first bookmark picked)
     ./bench bookmark URL [new]         test run: a bookmark picked from the list, timed until it loads
                                        (new: into a new tab, whose page isn't built yet)
+    ./bench peek URL|close             test run: the peek panel over the tab in front, as a shift-click opens it
     ./bench window                     test run: open the browser's window if a hidden probe came up without it
     ./bench pages on|off               test run: let a hidden probe's pages be painted, off every screen (for picture)
     ./bench picture PATH               test run: the whole window, pages included, drawn to a PNG (start the probe hidden)
     ./bench film peek|unpeek|fold PATH [N] [SECS]  the window drawn N times while it animates → PATH-00.png… — --test runs only
     ./bench ui KEY VALUE               settings/passwords/welcome/history/downloads/bookmarks/hidden on|off,
                                        look light|dark|system, sidebar on|off, spaces on|off, hides on|off,
-                                       folded on|off, peek on|off, pages120 on|off
+                                       folded on|off, peek on|off, peeklink keep|close, pages120 on|off
 
 Needs Settings › General › "Let a script drive mnml" switched on in the
 running app. IDs are the first characters of a tab's id, as `tabs` prints
@@ -124,8 +131,9 @@ def main(argv):
         if len(args) != 1: sys.exit(f"usage: bench {verb} ID")
         request["id"] = args[0]
     elif verb == "eval":
-        if len(args) != 2: sys.exit("usage: bench eval ID JS")
-        request["id"], request["js"] = args
+        if len(args) not in (2, 3) or (len(args) == 3 and args[2] != "search"): sys.exit("usage: bench eval ID JS [search]")
+        request["id"], request["js"] = args[0], args[1]
+        if len(args) == 3: request["world"] = "search"
     elif verb == "tap":
         if len(args) < 2: sys.exit("usage: bench tap ID SELECTOR [cmd] [shift] [opt] [ctrl]")
         request["id"], request["selector"], request["mods"] = args[0], args[1], args[2:]
@@ -143,7 +151,7 @@ def main(argv):
     elif verb == "ui":
         if len(args) != 2: sys.exit("usage: bench ui KEY VALUE")
         key, value = args
-        request[key] = value if key in ("look", "edittab") else value in ("on", "true", "1", "yes")
+        request[key] = value if key in ("look", "edittab", "peeklink") else value in ("on", "true", "1", "yes")
     elif verb in ("ext-add", "ext-press", "ext-remove", "ext-reload"):
         if len(args) != 1: sys.exit(f"usage: bench {verb} ID")
         request["id"] = args[0]
@@ -200,6 +208,17 @@ def main(argv):
         if len(args) > 2: request["steps"] = int(args[2])
     elif verb == "group":
         request["args"] = args
+    elif verb == "consent":
+        if len(args) > 1 or (args and args[0] not in ("grant", "revoke")): sys.exit("usage: bench consent [grant|revoke]")
+        if args: request["action"] = args[0]
+    elif verb == "fold":
+        if not 1 <= len(args) <= 2: sys.exit("usage: bench fold PATH [WIDTH]")
+        request["path"] = os.path.abspath(args[0])
+        if len(args) == 2: request["width"] = float(args[1])
+    elif verb == "site":
+        if not 1 <= len(args) <= 2: sys.exit("usage: bench site PATH [security]")
+        request["path"] = os.path.abspath(args[0])
+        if len(args) == 2: request["security"] = args[1] == "security"
     elif verb == "column":
         if not 1 <= len(args) <= 2: sys.exit("usage: bench column PATH [HEIGHT]")
         request["path"] = os.path.abspath(args[0])
@@ -240,6 +259,14 @@ def main(argv):
     elif verb == "fullscreen":
         if args not in ([], ["on"], ["off"]): sys.exit("usage: bench fullscreen [on|off]")
         if args: request["on"] = args[0] == "on"
+    elif verb == "peek":
+        if len(args) != 1: sys.exit("usage: bench peek URL|close")
+        request["url"] = args[0]
+    elif verb == "pull":
+        if len(args) not in (1, 2, 3): sys.exit("usage: bench pull DX [STEPS] [MS]")
+        request["dx"] = float(args[0])
+        if len(args) > 1: request["steps"] = int(args[1])
+        if len(args) > 2: request["ms"] = float(args[2])
     elif verb == "window":
         pass
     elif verb == "pages":

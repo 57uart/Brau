@@ -290,10 +290,16 @@ final class History: ObservableObject {
             Store.quarantine(History.file)
             return
         }
-        visits = Dictionary(uniqueKeysWithValues: list.map { saved in
+        // Keys written by an older mnml can meet under the new rule:
+        // they are merged, never trusted to be unique.
+        visits = Dictionary(list.map { saved in
             var visit = saved
             if let url = URL(string: visit.url) { visit.key = History.key(for: url) }
             return (visit.key, visit)
+        }, uniquingKeysWith: { a, b in
+            var kept = a.last >= b.last ? a : b
+            kept.count = a.count + b.count
+            return kept
         })
     }
 
