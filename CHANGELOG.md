@@ -30,6 +30,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Fixed
 
+- An extension's popup opens at its size, the one it had last time, where it came in as a sliver and grew into place. Thanks [@nicostassart](https://github.com/nicostassart) ([#48](https://github.com/driceroland/Search/pull/48))
 - An extension's sign-in is finished only by the tab it began in, or a window that tab opened; another page that goes to an address shaped like the sign-in's answer is no longer handed to the extension as that answer. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#132](https://github.com/driceroland/Search/pull/132))
 - A right-click on an image offers Search's own menu to open, copy or download it only when its address is http, https, data or blob; for any other address a page names, WebKit's own menu shows instead. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#131](https://github.com/driceroland/Search/pull/131))
 - `./bench` answers only for the tabs it opened itself: a script on this Mac can no longer read, click in, or put to sleep a tab you are using. Thanks [@Hyp4tia](https://github.com/Hyp4tia) ([#130](https://github.com/driceroland/Search/pull/130))
