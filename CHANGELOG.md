@@ -19,6 +19,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 - A link from another app, or one opened from a pinned tab, comes first after the pins instead of landing between two of them. ([#219](https://github.com/driceroland/Search/issues/219))
 - The shortcuts card lists ⇧⌘C, Copy Address, which only the Tabs menu showed. Thanks [@merttopuz](https://github.com/merttopuz) ([#182](https://github.com/driceroland/Search/pull/182)), and [@olllayor](https://github.com/olllayor) for asking ([#176](https://github.com/driceroland/Search/issues/176))
+- The Settings sidebar's colour reaches the divider at the top and bottom, without rounded inner corners. Thanks [@sunniekapar](https://github.com/sunniekapar) ([#222](https://github.com/driceroland/Search/pull/222))
 
 ## 1.0.3 — 24 September 2026
 
