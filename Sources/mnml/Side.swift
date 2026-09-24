@@ -58,6 +58,15 @@ struct SideBar: View {
     private static let gap: CGFloat = 2
     private static let square: CGFloat = 34
     private static let pinGap: CGFloat = 6
+
+    // The column's highlights: the ink, see-through, rather than a grey of
+    // their own, so they lighten a group's colour as they do the column —
+    // a flat grey all but vanished over a group, and in the dark.
+    static let liveFill = Palette.ink.opacity(0.10)
+    static let hoverFill = Palette.ink.opacity(0.06)
+    static let pinFill = Palette.ink.opacity(0.07)
+    static let pinHoverFill = Palette.ink.opacity(0.10)
+    static let pinLiveFill = Palette.ink.opacity(0.15)
     /// The narrowest a pinned square gets before a row takes one fewer.
     private static let pinCell: CGFloat = 34
 
@@ -828,11 +837,11 @@ private struct PinSquare: View {
         .background {
             if live {
                 RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous)
-                    .fill(Palette.wash)
+                    .fill(SideBar.pinLiveFill)
                     .matchedGeometryEffect(id: "live", in: pill)
             } else {
                 RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous)
-                    .fill(hovering ? Palette.hover : Palette.wash.opacity(0.55))
+                    .fill(hovering ? SideBar.pinHoverFill : SideBar.pinFill)
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous))
@@ -977,7 +986,7 @@ struct SideRow: View {
     private var ground: some View {
         if live {
             ZStack(alignment: .leading) {
-                Rectangle().fill(Palette.wash)
+                Rectangle().fill(SideBar.liveFill)
                 if prefs.showsReading {
                     GeometryReader { geo in
                         Rectangle()
@@ -991,14 +1000,14 @@ struct SideRow: View {
             .matchedGeometryEffect(id: "live", in: pill)
         } else if browser.chosen.contains(tab.id) {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Palette.wash)
+                .fill(SideBar.liveFill)
                 .overlay(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .strokeBorder(Palette.ink.opacity(0.18), lineWidth: 1)
                 )
         } else if hovering {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Palette.hover)
+                .fill(SideBar.hoverFill)
         }
     }
 
