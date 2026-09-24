@@ -500,8 +500,9 @@ struct SideBar: View {
             // Held, the group keeps its place in the list, unseen, while a
             // copy of it follows the hand (see `ghost`).
             GroupBlock(browser: browser, group: group, members: members, row: { tabRow($0) })
-                // Room around a group, so two in a row don't run together.
-                .padding(.vertical, 6)
+                // Room around a group whose tabs show, so two in a row don't
+                // run together; folded to its name alone it is spaced like a tab.
+                .padding(.vertical, group.open || members.contains { $0.id == group.peek } ? 6 : 0)
                 .opacity(held == .group(group.id) ? 0 : 1)
         }
     }
