@@ -693,7 +693,12 @@ final class Tab: ObservableObject, Identifiable {
     /// Called from the page, a few dozen times a second at most — the script
     /// already waits for a frame before it says anything.
     func scrolled(to y: Double, of ceiling: Double) {
-        reading = ceiling > 0 ? min(1, max(0, y / ceiling)) : 0
+        // In hundredths, and only when that changes. The page reports once a
+        // frame while it scrolls — 120 times a second on a 120 Hz screen — and
+        // each new value had the window redraw the tab's fill, a third of a
+        // core on the thread WebKit needs to put the scrolled page on screen.
+        let fraction = ceiling > 0 ? (min(1, max(0, y / ceiling)) * 100).rounded() / 100 : 0
+        if fraction != reading { reading = fraction }
         let delta = y - lastY
         lastY = y
         onScroll?(self, y, delta)
