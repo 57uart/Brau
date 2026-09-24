@@ -2206,12 +2206,51 @@ enum ExtensionShims {
         var errorDescription: String? { what }
     }
 
+    /// The families whose answers leave the extension's own origin: what the
+    /// browser knows about the person using it. WebKit keeps no permission
+    /// object for them, they are the APIs this shim exists to supply, so the
+    /// gate reads the names the extension's own manifest asked for.
+    private static let gates: [String: String] = [
+        "bookmarks": "bookmarks",
+        "history": "history",
+        "downloads": "downloads",
+        "sessions": "sessions",
+        "topSites": "topSites",
+        "browsingData": "browsingData",
+        "readingList": "readingList",
+    ]
+
+    /// What this extension asked for: the names in its manifest and any
+    /// optional ones granted since. The checks inside the shim are a
+    /// courtesy to honest code, the shim runs beside the extension's own,
+    /// so the one that counts is here. The manifest is the one WebKit
+    /// already holds, not the file read again on every call.
+    private static func allowed(_ id: String, context: WKWebExtensionContext) -> Set<String> {
+        let asked = (context.webExtension.manifest["permissions"] as? [Any] ?? []).compactMap { $0 as? String }
+        return Set(asked + (Store.settings.stringArray(forKey: "extensions.granted.\(id)") ?? []))
+    }
+
     private static func run(_ api: String, _ args: [Any], context: WKWebExtensionContext, owner: Extensions) async throws -> Any? {
         guard let browser = owner.browser else { throw Unsupported(what: "No browser window") }
         let first = args.first
         let id = context.uniqueIdentifier
 
         if api.hasPrefix("setting.") { return setting(api, first as? [String: Any] ?? [:], extension: id, owner: owner) }
+
+        // What leaves this app is answered here, not in the injected script:
+        // the shim runs beside the extension's own code, so its checks stop
+        // only the honest. A family this extension never asked for is an
+        // error, the way Chrome answers a call to an API it lacks.
+        // `tabs.describe` is the one call inside a family WebKit does own
+        // where the permission guards reading a tab rather than moving or
+        // selecting it. WebKit keeps that permission, optional grants
+        // included, so it is asked.
+        if api == "tabs.describe", !context.hasPermission(.tabs) {
+            throw Unsupported(what: "The extension never asked for \u{201C}tabs\u{201D}")
+        }
+        if let needed = gates[String(api.prefix(while: { $0 != "." }))], !allowed(id, context: context).contains(needed) {
+            throw Unsupported(what: "The extension never asked for \u{201C}\(needed)\u{201D}")
+        }
 
         switch api {
         // MARK: bookmarks
