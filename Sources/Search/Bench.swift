@@ -333,9 +333,16 @@ final class Bench {
                     }
                     let local = NSPoint(x: point[0], y: view.isFlipped ? point[1] : view.bounds.height - point[1])
                     let spot = view.convert(local, to: nil)
+                    // Held while clicking: "shift", "cmd", "opt".
+                    var held: NSEvent.ModifierFlags = []
+                    for name in request["mods"] as? [String] ?? [] {
+                        if name == "shift" { held.insert(.shift) }
+                        if name == "cmd" { held.insert(.command) }
+                        if name == "opt" { held.insert(.option) }
+                    }
                     for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
                         guard let event = NSEvent.mouseEvent(
-                            with: type, location: spot, modifierFlags: [],
+                            with: type, location: spot, modifierFlags: held,
                             timestamp: ProcessInfo.processInfo.systemUptime,
                             windowNumber: window.windowNumber, context: nil,
                             eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0
@@ -414,6 +421,7 @@ final class Bench {
                 return FrameRate.prefersNear60(preferences)
             }
             // The column folded away, out for a look, and the lights with it (see Fold.swift).
+            out["peek"] = browser.peekTab?.address?.absoluteString ?? ""
             out["folded"] = browser.folded
             out["peeking"] = browser.peeking
             out["sideHides"] = browser.prefs.sideHides
@@ -1140,6 +1148,10 @@ final class Bench {
             if let on = request["hides"] as? Bool { browser.prefs.sideHides = on }
             if let on = request["folded"] as? Bool { browser.folded = on }
             if let on = request["peek"] as? Bool { browser.peeking = on }
+            // A peek at a link (Peek.swift): its two buttons.
+            if let what = request["peeklink"] as? String {
+                if what == "keep" { browser.keepPeek() } else { browser.closePeek() }
+            }
             // The address of the tab on screen being edited in the tab, with
             // this typed, and that edit let go of by a click elsewhere.
             if let text = request["edittab"] as? String, let tab = browser.active {

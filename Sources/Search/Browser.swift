@@ -704,6 +704,8 @@ final class Browser: NSObject, ObservableObject {
     /// whether the card for a new space stands in for them (see SpaceSwipe).
     @Published var spaceSwipe: CGFloat = 0
     @Published var makingSpace = false
+    /// A link's page, peeked at over this one (see Peek.swift).
+    @Published var peekTab: Tab?
     /// Which way the last change of space went: 1 to the next, -1 back.
     @Published var spaceStep = 1
 
@@ -1427,6 +1429,12 @@ final class Browser: NSObject, ObservableObject {
         activeID = active ?? row.first?.id
     }
 
+    /// A tab made outside the row — a peek being kept — put in it at `index`.
+    func insert(_ tab: Tab, at index: Int) {
+        tabs.insert(tab, at: min(max(0, index), tabs.count))
+        rememberSession()
+    }
+
     private func adopt(_ tab: Tab) {
         prepare(tab)
         tabs.append(tab)
@@ -1506,7 +1514,7 @@ final class Browser: NSObject, ObservableObject {
         tab.web.evaluateJavaScript(Isolate.off)
     }
 
-    private func prepare(_ tab: Tab) {
+    func prepare(_ tab: Tab) {
         tab.delegate = self
         tab.onLink = { [weak self] tab, address in
             guard let self, prefs.showsLinks, tab.id == activeID else { return }
@@ -1885,6 +1893,17 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // its own, and letting this one through would take the page there too.
         if action.navigationType == .linkActivated, action.buttonNumber == 4 {
             decisionHandler(.cancel)
+            return
+        }
+        // Shift-click, when Settings says so: a peek at the link, over this
+        // page (see Peek.swift). Only from a tab in the row — within a peek,
+        // a link just goes.
+        if prefs.peeksLinks, action.navigationType == .linkActivated,
+           ["http", "https"].contains(scheme),
+           action.modifierFlags.intersection([.shift, .command, .option, .control]) == .shift,
+           let from = tab(for: webView), peekTab == nil {
+            decisionHandler(.cancel)
+            DispatchQueue.main.async { [weak self] in self?.peek(url, from: from) }
             return
         }
         if action.navigationType == .linkActivated,

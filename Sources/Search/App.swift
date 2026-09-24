@@ -448,6 +448,9 @@ struct ContentView: View {
             // The column folded away, and out again at the edge (see Fold.swift).
             .overlay(alignment: .leading) { Fold(browser: browser, prefs: browser.prefs) }
             .overlay(alignment: .bottom) { bars }
+            .overlay {
+                if let page = browser.peekTab { PeekPanel(browser: browser, tab: page) }
+            }
             .overlay { field }
             .overlay { panels }
             // The field comes on its spring, and goes quickly: once Return
@@ -779,6 +782,10 @@ struct ContentView: View {
                 browser.cancelTabEdit()
                 return true
             }
+            if browser.peekTab != nil {
+                browser.closePeek()
+                return true
+            }
             if browser.makingSpace {
                 withAnimation(Motion.glide) { browser.makingSpace = false }
                 return true
@@ -962,7 +969,11 @@ struct ContentView: View {
         case "0":
             browser.resetZoom()
         case "w" where !shifted:
-            if let tab = browser.active { browser.close(tab) }
+            if browser.peekTab != nil {
+                browser.closePeek()
+            } else if let tab = browser.active {
+                browser.close(tab)
+            }
         case "l" where !shifted:
             browser.edit()
         case "r" where !shifted:
