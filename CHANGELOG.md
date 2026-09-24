@@ -13,9 +13,17 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Added
 
-- Updates can wait for you: Settings › About › Install updates on its own, on as before. Switched off, Search still looks once a day and says when a newer version is out, and fetches, checks and installs it only when you press Install.
 ### Fixed
 
+## 1.0.3 — 24 September 2026
+
+### Added
+
+- Updates can wait for you: Settings › About › Install updates on its own, on as before. Switched off, Search still looks once a day and says when a newer version is out, and fetches, checks and installs it only when you press Install.
+
+### Fixed
+
+- Security hardening across updates, extensions and the bench, from a careful private report — thanks to Vahagn Yengibaryan. An update is installed only if it meets the Developer ID requirement a shipped Search is signed to and matches its checksum; an extension's update is compared on everything it may do, the sites it reaches and the APIs Search answers for it included, and a package never supplies the files only Search writes beside it; an extension may request only permissions its manifest names, and reads browser settings or signs in only with the permission for it; and “Let a script drive Search” opens only once switched on in Settings.
 - Bitwarden signs in to a self-hosted server. An extension's popup, and the page its "pop out" opens in a tab, now hear what changes while they are open: WebKit sent them no events at all, so Bitwarden's popup never learnt that its server had changed, and signed in to bitwarden.com, where a self-hosted account doesn't exist, until it was opened again.
 - A mouse wheel scrolls pages that listen to the wheel themselves, as carousels and x.com do: Search stopped pages bouncing past their top and bottom with a style of its own, and together with such a listener WebKit dropped the wheel's steps. The bounce is now turned off by WebKit itself, the page's styles untouched, and the sideways bounce stays for swiping back and forward. Thanks [@olllayor](https://github.com/olllayor) ([#194](https://github.com/driceroland/Search/pull/194)). Fixes [#180](https://github.com/driceroland/Search/issues/180)
 - An account picked from the list under a sign-in field is filled only into the page it was offered for.
