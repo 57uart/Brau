@@ -1052,6 +1052,35 @@ final class Bench {
                 window.contentView = nil
             }
 
+        case "fold":
+            // The strip or the column as it comes out over the page once
+            // folded (see Fold.swift), drawn off screen over red: whatever of
+            // the page would show through it shows red. `picture` can't say —
+            // it lays the page's own picture over everything drawn above it.
+            guard Store.testing else { answer(["error": "fold only works on a --test run"]); return }
+            guard let path = request["path"] as? String else { answer(["error": "fold needs a path"]); return }
+            guard browser.folded, browser.peeking else { answer(["error": "fold and peek first: ui folded on, ui peek on"]); return }
+            let width = request["width"] as? Double ?? 1100
+            let size = NSSize(width: width, height: browser.prefs.sidebar ? 500 : 120)
+            let host = NSHostingView(rootView: ZStack(alignment: .topLeading) {
+                Color.red
+                Fold(browser: browser, prefs: browser.prefs)
+            }.frame(width: size.width, height: size.height))
+            host.frame = NSRect(origin: .zero, size: size)
+            let window = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
+            window.appearance = NSApp.effectiveAppearance
+            window.contentView = host
+            host.layoutSubtreeIfNeeded()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                guard let picture = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { answer(["error": "nothing drawn"]); return }
+                host.cacheDisplay(in: host.bounds, to: picture)
+                do {
+                    try picture.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+                    answer(["saved": path])
+                } catch { answer(["error": error.localizedDescription]) }
+                window.contentView = nil
+            }
+
         case "site":
             // The site card for the tab on screen, or one step in on its
             // connection, drawn off screen (see SiteCard.swift).
@@ -1201,7 +1230,7 @@ final class Bench {
 
         default:
             answer(["error": "unknown command “\(verb)”", "commands": [
-                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "pull", "space", "strip", "column", "site", "ui",
+                "tabs", "open", "go", "close", "wait", "sleep", "select", "text", "eval", "click", "type", "submit", "shot", "probe", "key", "resize", "hit", "film", "window", "pages", "picture", "place", "field", "bookmark", "menu", "keyeq", "pull", "space", "strip", "column", "fold", "site", "ui",
             ]])
         }
     }
