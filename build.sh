@@ -190,7 +190,7 @@ quit_running() {
 
 if [ "$STEP" = "test" ]; then
   quit_running com.farchan.mnml.test
-  for _ in $(seq 1 50); do
+  for _ in $(seq 1 150); do  # up to 30 s: a big session takes a while to save
     pgrep -f "/Applications/mnml Test.app/Contents/MacOS/$NAME" >/dev/null || break
     sleep 0.2
   done
@@ -209,7 +209,7 @@ if [ "$STEP" = "install" ]; then
   # Quit the way ⌘Q does, so the session is saved and comes back.
   quit_running com.farchan.mnml
   # A dialog left open in mnml keeps it from quitting; say so rather than wait for ever.
-  for _ in $(seq 1 50); do
+  for _ in $(seq 1 150); do  # up to 30 s: a big session takes a while to save
     pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null || break
     sleep 0.2
   done
