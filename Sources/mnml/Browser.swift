@@ -1427,7 +1427,7 @@ final class Browser: NSObject, ObservableObject {
         let here = atEnd ? nil : tabs.firstIndex { $0.id == activeID }
         // Opened beside a tab in a group, it is one of the group's too.
         if let here, tabs[here].pin == nil { tab.group = tabs[here].group }
-        tabs.insert(tab, at: here.map { $0 + 1 } ?? tabs.count)
+        tabs.insert(tab, at: atEnd ? tabs.count : placeForNew())
         tab.go(to: url)
         if foreground {
             leaving()
@@ -1469,7 +1469,7 @@ final class Browser: NSObject, ObservableObject {
     /// An address from before extensions moved to chrome-extension://, as
     /// it is now; any other, as it is.
     static func page(_ url: URL) -> URL {
-        if #available(macOS 15.4, *) { return Extensions.current(url) }
+        if #available(macOS 15.4, *) { return Extensions.unpopped(Extensions.current(url)) }
         return url
     }
 
@@ -1634,6 +1634,15 @@ final class Browser: NSObject, ObservableObject {
         let home = prefs.newTabs == .top ? (loose ?? tabs.count - 1) : tabs.count - 1
         guard let here = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
         move(tab, to: here < home && prefs.newTabs == .top ? home - 1 : home)
+    }
+
+    /// Where a new tab goes: beside the tab you are on — but never among the
+    /// pins, which a new tab isn't one of: from a pin, it comes first after
+    /// them. A link from another app, with a pin in front, landed between two
+    /// (#219).
+    func placeForNew() -> Int {
+        guard let here = tabs.firstIndex(where: { $0.id == activeID }) else { return tabs.count }
+        return max(here + 1, pinnedCount)
     }
 
     /// A tab made outside the row — a peek being kept — put in it at `index`.
@@ -2201,6 +2210,8 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // did nothing at all. Each tab gets a controller of its own.
         configuration.userContentController = WKUserContentController()
         let tab = Tab(shy: tab(for: webView)?.shy ?? false, configuration: configuration)
+        tab.popup = windowFeatures.width != nil || windowFeatures.height != nil
+            || windowFeatures.toolbarsVisibility?.boolValue == false
         adopt(tab)
         tab.opener = from
         activeID = tab.id

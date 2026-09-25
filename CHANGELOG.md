@@ -13,9 +13,28 @@ in [ROADMAP.md](ROADMAP.md).
 
 ### Added
 
-- Updates can wait for you: Settings › About › Install updates on its own, on as before. Switched off, Search still looks once a day and says when a newer version is out, and fetches, checks and installs it only when you press Install.
+- Links from other apps can open in a small window of their own: the page, the site and Open in Search (⌘O), which moves it into your tabs as it is, after the pins and without loading it again. Escape or ⌘W closes it. Off unless you turn it on in Settings › General › Open links from other apps in a small window. The idea came from [@K-NRS](https://github.com/K-NRS) ([#227](https://github.com/driceroland/Search/pull/227)), after Arc's Little Arc.
+
 ### Fixed
 
+- A window a page opens at a size of its own, a sign-in window for one, is named in the tabs by its site rather than by its title, which the page chooses: one called "Sign in with Google" from another address no longer passes for Google's. A plain link opened in a new tab keeps its title, and a name you gave a tab stays first.
+- A link from another app, or one opened from a pinned tab, comes first after the pins instead of landing between two of them. ([#219](https://github.com/driceroland/Search/issues/219))
+- The shortcuts card lists ⇧⌘C, Copy Address, which only the Tabs menu showed. Thanks [@merttopuz](https://github.com/merttopuz) ([#182](https://github.com/driceroland/Search/pull/182)), and [@olllayor](https://github.com/olllayor) for asking ([#176](https://github.com/driceroland/Search/issues/176))
+- The Settings sidebar's colour reaches the divider at the top and bottom, without rounded inner corners. Thanks [@sunniekapar](https://github.com/sunniekapar) ([#222](https://github.com/driceroland/Search/pull/222))
+- An extension whose worker is a module gets Search's Chrome layer before its own imports run, not after them, and finds `navigator.userAgentData` there, which Chrome has and WebKit doesn't. Content scripts can call `chrome.runtime` functions on their own, as Chrome allows (`const connect = chrome.runtime.connect; connect()`), where WebKit answered nothing. Vimium C's background starts, where WebKit failed to load it; it doesn't answer its keys yet. Thanks [@karadoganyi](https://github.com/karadoganyi) ([#170](https://github.com/driceroland/Search/pull/170))
+- A floating video stays inside its window on players that centre it with a transform, and Netflix subtitles stay visible over the picture. Thanks [@K-NRS](https://github.com/K-NRS) ([#190](https://github.com/driceroland/Search/pull/190))
+- iCloud Passwords pairs on the first code, and stays paired. Its first words to Apple's helper were lost as its background started, so every code you typed got a request for a new one; and WebKit put an extension's background to sleep after two minutes even while it was talking to an app on the Mac, after which iCloud Passwords asked for a code again. Both are mended: its first messages wait until the helper is there, and an extension talking to an app on the Mac stays awake, as in Chrome. Thanks [@PeterTheMango](https://github.com/PeterTheMango) ([#217](https://github.com/driceroland/Search/pull/217), [#17](https://github.com/driceroland/Search/issues/17))
+
+## 1.0.3 — 24 September 2026
+
+### Added
+
+- Updates can wait for you: Settings › About › Install updates on its own, on as before. Switched off, Search still looks once a day and says when a newer version is out, and fetches, checks and installs it only when you press Install.
+
+### Fixed
+
+- Security hardening across updates, extensions and the bench, from a careful private report — thanks to Vahagn Yengibaryan. An update is installed only if it meets the Developer ID requirement a shipped Search is signed to and matches its checksum; an extension's update is compared on everything it may do, the sites it reaches and the APIs Search answers for it included, and a package never supplies the files only Search writes beside it; an extension may request only permissions its manifest names, and reads browser settings or signs in only with the permission for it; and “Let a script drive Search” opens only once switched on in Settings.
+- Bitwarden signs in to a self-hosted server. An extension's popup, and the page its "pop out" opens in a tab, now hear what changes while they are open: WebKit sent them no events at all, so Bitwarden's popup never learnt that its server had changed, and signed in to bitwarden.com, where a self-hosted account doesn't exist, until it was opened again.
 - A mouse wheel scrolls pages that listen to the wheel themselves, as carousels and x.com do: Search stopped pages bouncing past their top and bottom with a style of its own, and together with such a listener WebKit dropped the wheel's steps. The bounce is now turned off by WebKit itself, the page's styles untouched, and the sideways bounce stays for swiping back and forward. Thanks [@olllayor](https://github.com/olllayor) ([#194](https://github.com/driceroland/Search/pull/194)). Fixes [#180](https://github.com/driceroland/Search/issues/180)
 - An account picked from the list under a sign-in field is filled only into the page it was offered for.
 - History opens at once with a long past: with two thousand pages the panel took a third of a second to come up, and a second the first time, while it made every line at once and looked on disk for each site's icon. Now it makes only the lines in view, works out its days once, and remembers which sites have no icon. Escape already closes it (#70). ([#67](https://github.com/driceroland/Search/issues/67))
