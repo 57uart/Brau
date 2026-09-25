@@ -140,7 +140,9 @@ struct GroupBlock<Row: View>: View {
                 Text(group.name)
                     .font(.system(size: 12.5, weight: .semibold))
                     .lineLimit(1)
-                    .foregroundStyle(coloured && group.colour != 0 ? group.tint : Palette.ink)
+                    // In ink, always: the wash and the icon carry the colour,
+                    // and a coloured name is harder to read.
+                    .foregroundStyle(Palette.ink)
                 Image(systemName: group.open ? "chevron.down" : "chevron.right")
                     .font(.system(size: 8.5, weight: .semibold))
                     .foregroundStyle((coloured && group.colour != 0 ? group.tint : Palette.muted).opacity(hovering ? 1 : 0.7))

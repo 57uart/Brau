@@ -112,7 +112,8 @@ struct StripGroup<Pill: View>: View {
                     .truncationMode(.tail)
                     .frame(maxWidth: StripChip.maxName, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: false)
-                    .foregroundStyle(group.colour != 0 ? group.tint : Palette.ink)
+                    // In ink: the chip's patch carries the colour.
+                    .foregroundStyle(Palette.ink)
             }
         }
         .padding(.horizontal, 10)
