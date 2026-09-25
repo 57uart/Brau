@@ -180,6 +180,17 @@ fi
 echo "built: $APP ($VERSION, build $BUILD)"
 [ "$STEP" = "app" ] && exit 0
 
+# macOS keeps the icon it first saw for an app at a path; a new one put
+# there went unnoticed (⌘Tab showed Search's S after mnml's own). Touched and
+# registered again, it is read afresh — and the copy in build/, which shares
+# the bundle id, is forgotten, so nothing picks it by mistake.
+fresh_icon() {
+  LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+  touch "$1"
+  "$LSREG" -f "$1" 2>/dev/null || true
+  "$LSREG" -u "$APP" 2>/dev/null || true
+}
+
 # Quit the copy that is running, the way ⌘Q does (the session is saved).
 # AppleScript's `quit app id` looked the id up in Launch Services, which
 # could answer with the copy just built in build/ — not running — and quit
@@ -200,6 +211,7 @@ if [ "$STEP" = "test" ]; then
   fi
   rm -rf "/Applications/mnml Test.app"
   ditto "$APP" "/Applications/mnml Test.app"
+  fresh_icon "/Applications/mnml Test.app"
   open "/Applications/mnml Test.app"
   echo "installed: /Applications/mnml Test.app"
   exit 0
@@ -219,6 +231,7 @@ if [ "$STEP" = "install" ]; then
   fi
   rm -rf "/Applications/$NAME.app"
   ditto "$APP" "/Applications/$NAME.app"
+  fresh_icon "/Applications/$NAME.app"
   open "/Applications/$NAME.app"
   echo "installed: /Applications/$NAME.app"
   exit 0
