@@ -180,8 +180,16 @@ fi
 echo "built: $APP ($VERSION, build $BUILD)"
 [ "$STEP" = "app" ] && exit 0
 
+# Quit the copy that is running, the way ⌘Q does (the session is saved).
+# AppleScript's `quit app id` looked the id up in Launch Services, which
+# could answer with the copy just built in build/ — not running — and quit
+# nothing, without a word.
+quit_running() {
+  osascript -l JavaScript -e "ObjC.import('AppKit'); var a = \$.NSRunningApplication.runningApplicationsWithBundleIdentifier('$1'); for (var i = 0; i < a.count; i++) a.objectAtIndex(i).terminate" >/dev/null 2>&1 || true
+}
+
 if [ "$STEP" = "test" ]; then
-  osascript -e 'quit app id "com.farchan.mnml.test"' 2>/dev/null || true
+  quit_running com.farchan.mnml.test
   for _ in $(seq 1 50); do
     pgrep -f "/Applications/mnml Test.app/Contents/MacOS/$NAME" >/dev/null || break
     sleep 0.2
@@ -199,7 +207,7 @@ fi
 
 if [ "$STEP" = "install" ]; then
   # Quit the way ⌘Q does, so the session is saved and comes back.
-  osascript -e 'quit app id "com.farchan.mnml"' 2>/dev/null || true
+  quit_running com.farchan.mnml
   # A dialog left open in mnml keeps it from quitting; say so rather than wait for ever.
   for _ in $(seq 1 50); do
     pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null || break
