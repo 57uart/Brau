@@ -496,28 +496,6 @@ struct SettingsPanel: View {
                     Pill("Send Feedback") { Links.writeFeedback() }
                 }
             }
-
-            Card {
-                Shortcut(["file.openAddress"], "Address")
-                Rule()
-                Shortcut(["tabs.search"], "Switch tab")
-                Rule()
-                Shortcut(["file.newTab", "file.closeTab", "file.reopen"], "New, close, reopen tab")
-                Rule()
-                Shortcut(["tabs.next", "tabs.select1"], "Next tab, a tab by its place")
-                Rule()
-                Shortcut(["tabs.copyAddress"], "Copy address")
-                Rule()
-                Shortcut(["view.sidebar"], "Tabs in a sidebar")
-                Rule()
-                Shortcut(["view.fold"], "Fold the sidebar away")
-                Rule()
-                Shortcut(["view.reader"], "Reading mode")
-                Rule()
-                Shortcut(["view.hide"], "Hide something on this site")
-                Rule()
-                Shortcut(["view.float"], "Float the video")
-            }
         }
     }
 
@@ -585,23 +563,6 @@ struct SettingsPanel: View {
         prefs.downloads = url
     }
 
-    // MARK: - pieces
-
-    /// What some commands do, on the keys they have now (Settings › Shortcuts).
-    private func Shortcut(_ ids: [String], _ does: String) -> some View {
-        let keys = ids.map { browser.shortcuts.key(for: $0)?.display ?? "Off" }.joined(separator: "  ")
-        return HStack {
-            Text(does)
-                .font(.system(size: 13))
-                .foregroundStyle(Palette.ink)
-            Spacer()
-            Text(keys)
-                .font(.system(size: 12, design: .rounded))
-                .foregroundStyle(Palette.muted)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-    }
 }
 
 /// A row of choices in a grey track, one of them lifted out in white. The

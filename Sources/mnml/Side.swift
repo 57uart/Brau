@@ -977,6 +977,8 @@ struct SideRow: View {
 
     @State private var hovering = false
     @State private var shake: CGFloat = 0
+    /// The row in the window, for its preview to open beside (TabPreview).
+    @State private var spot: CGRect = .zero
 
     private var editing: Bool { browser.editingTab == tab.id }
     /// Something laid over the end of the title: the cross, the ring, the speaker.
@@ -1074,6 +1076,7 @@ struct SideRow: View {
         .modifier(OneClick(double: false) {
             // ⌘-click picks tabs, ⇧-click a run of them, for the menu to act
             // on together; a plain click is the tab, and lets the pick go.
+            TabPreview.shared.hide()
             let flags = NSEvent.modifierFlags
             if flags.contains(.command) { browser.toggleChosen(tab); return }
             if flags.contains(.shift) { browser.chooseRange(to: tab); return }
@@ -1081,7 +1084,22 @@ struct SideRow: View {
             if live { browser.beginTabEdit(tab) } else { browser.select(tab) }
         })
         .overlay { MiddleClick(act: close) }
-        .onHover { hovering = $0 }
+        .background {
+            GeometryReader { box in
+                Color.clear
+                    .onAppear { spot = box.frame(in: .global) }
+                    .onChange(of: box.frame(in: .global)) { _, frame in spot = frame }
+            }
+        }
+        .onHover { over in
+            hovering = over
+            // Beside the column's edge with a gap, not the row's: the row
+            // ends just inside it, and the card sat flush against it.
+            var edge = spot
+            edge.size.width = max(spot.width, prefs.sideWidth - spot.minX + 4)
+            TabPreview.shared.hover(over, tab: tab, browser: browser, beside: edge)
+        }
+        .onDisappear { if hovering { TabPreview.shared.hide() } }
         .contextMenu { TabMenu(browser: browser, tab: tab, close: close) }
         .animation(Motion.quick, value: hovering)
         .animation(Motion.glide, value: editing)
