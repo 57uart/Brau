@@ -147,82 +147,43 @@ enum Motion {
     static let quick = Animation.easeOut(duration: 0.14)
 }
 
-/// mnml's mark — Drice's Subtract.svg, a pill with an S cut out of it,
-/// read from its own path data rather than loaded from a file, so it stays a
-/// crisp vector at any size. No plate, no square behind it: the mark draws exactly
-/// what the source file has and nothing it doesn't, the way every other icon
-/// in this app is a bare shape rather than a shape on a background. The one
-/// exception is the macOS app icon (`Icon/icon.swift`), which needs an
-/// opaque square whether the mark wants one or not — that's the Dock's
-/// requirement, not the logo's.
+/// mnml's mark: F in Morse — dot, dot, dash, dot. A bare shape, like
+/// every other icon in the app; only the macOS app icon (`Icon/icon.swift`)
+/// puts it on a plate, because the Dock needs an opaque square. Both draw it
+/// from the same proportions.
 struct Logomark: Shape {
-    /// The source's own canvas: Subtract.svg, 608 × 276, nothing outside it.
-    static let canvas = CGSize(width: 608, height: 276)
+    /// In a row, as on the app icon; or stacked on a three-by-three grid —
+    /// two dots, a dash three dots wide, then a dot at the far end — for a
+    /// square spot such as the About page. Read left to right, top to bottom,
+    /// it is still ··–·.
+    var stacked = false
 
-    /// A pill with an S cut out of it. The same path as Icon/icon.swift and
-    /// the website's mark.
-    private static let data = "M469.443 0C545.471 0.00013198 607.103 61.6325 607.104 137.66C607.104 213.688 545.471 275.321 469.443 275.321H137.66C61.6323 275.321 0 213.688 0 137.66C0.00016085 61.6325 61.6325 0.000140192 137.66 0H469.443ZM138.104 51.5977C127.234 51.5977 117.512 53.5115 108.938 57.3389C100.518 61.0132 93.8581 66.2188 88.959 72.9551C84.2132 79.5381 81.8398 87.3464 81.8398 96.3789C81.8399 105.258 83.6773 112.607 87.3516 118.425C91.0258 124.089 95.9251 128.682 102.049 132.203C108.173 135.571 114.833 138.327 122.028 140.471L151.652 149.197C158.389 151.188 163.9 154.249 168.187 158.383C172.473 162.516 174.617 168.028 174.617 174.917C174.617 182.572 171.402 188.849 164.972 193.748C158.695 198.494 150.122 200.867 139.252 200.867C132.21 200.867 125.702 199.413 119.731 196.504C113.914 193.442 109.091 189.308 105.264 184.103C101.436 178.744 99.2169 172.697 98.6045 165.961H97.6855L75.4102 171.013C76.3287 180.658 79.697 189.308 85.5146 196.963C91.3322 204.618 98.9103 210.665 108.249 215.104C117.741 219.544 128.076 221.765 139.252 221.765C151.193 221.765 161.68 219.774 170.713 215.794C179.746 211.813 186.711 206.225 191.61 199.029C196.662 191.834 199.188 183.414 199.188 173.769C199.188 164.124 197.352 156.239 193.678 150.115C190.003 143.838 185.104 138.863 178.98 135.188C172.857 131.514 166.044 128.605 158.542 126.462L128.229 117.735C121.799 115.898 116.516 113.219 112.383 109.698C108.402 106.177 106.412 101.354 106.412 95.2305C106.412 88.188 109.168 82.6758 114.68 78.6953C120.344 74.5619 128.152 72.4951 138.104 72.4951C147.901 72.4952 155.939 74.9448 162.216 79.8438C168.493 84.7428 172.397 91.1729 173.928 99.1338H174.847L196.663 93.8525C195.745 85.5853 192.605 78.3131 187.247 72.0361C181.889 65.6061 174.923 60.6306 166.35 57.1094C157.929 53.4351 148.514 51.5977 138.104 51.5977Z"
+    /// Dots 90 across, a dash three dots long (Morse's own rule), 45 between.
+    static let parts: [CGFloat] = [90, 90, 270, 90]
+    static let canvas = CGSize(width: parts.reduce(0, +) + 45 * CGFloat(parts.count - 1), height: 90)
+    static let stackedCanvas = CGSize(width: 360, height: 360)
+
+    /// Each piece as (x, y, width) on its canvas, every piece 90 tall.
+    private var pieces: [(CGFloat, CGFloat, CGFloat)] {
+        if stacked { return [(0, 0, 90), (135, 0, 90), (0, 135, 360), (270, 270, 90)] }
+        var x: CGFloat = 0
+        return Logomark.parts.map { part in defer { x += part + 45 }; return (x, 0, part) }
+    }
 
     func path(in rect: CGRect) -> Path {
-        // Fit the canvas into whatever frame this is given, centred, at the
-        // larger scale that still keeps it inside — an SVG viewBox's "meet".
-        let scale = min(rect.width / Logomark.canvas.width, rect.height / Logomark.canvas.height)
-        let ox = rect.midX - Logomark.canvas.width * scale / 2
-        let oy = rect.midY - Logomark.canvas.height * scale / 2
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: ox + x * scale, y: oy + y * scale) }
+        // Fit the canvas into the frame, centred, as an SVG viewBox "meet".
+        let canvas = stacked ? Logomark.stackedCanvas : Logomark.canvas
+        let scale = min(rect.width / canvas.width, rect.height / canvas.height)
+        let ox = rect.midX - canvas.width * scale / 2
+        let oy = rect.midY - canvas.height * scale / 2
+        let h = 90 * scale
         var path = Path()
-        var last = CGPoint.zero
-        var start = CGPoint.zero
-        for (c, n) in Logomark.commands {
-            switch c {
-            case "M": last = CGPoint(x: n[0], y: n[1]); start = last; path.move(to: pt(n[0], n[1]))
-            case "L": last = CGPoint(x: n[0], y: n[1]); path.addLine(to: pt(n[0], n[1]))
-            case "H": last.x = n[0]; path.addLine(to: pt(last.x, last.y))
-            case "V": last.y = n[0]; path.addLine(to: pt(last.x, last.y))
-            case "C":
-                var k = 0
-                while k + 5 < n.count {
-                    path.addCurve(to: pt(n[k + 4], n[k + 5]), control1: pt(n[k], n[k + 1]), control2: pt(n[k + 2], n[k + 3]))
-                    last = CGPoint(x: n[k + 4], y: n[k + 5])
-                    k += 6
-                }
-            case "Z": path.closeSubpath(); last = start
-            default: break
-            }
+        for (x, y, width) in pieces {
+            path.addRoundedRect(in: CGRect(x: ox + x * scale, y: oy + y * scale, width: width * scale, height: h),
+                                cornerSize: CGSize(width: h / 2, height: h / 2))
         }
         return path
     }
-
-    /// Read once. Absolute M, L, H, V, C, Z — what Figma writes for a
-    /// flattened shape, and nothing else is needed.
-    private static let commands: [(Character, [CGFloat])] = {
-        var out: [(Character, [CGFloat])] = []
-        var current: Character?
-        var numbers: [CGFloat] = []
-        var token = ""
-        func flush() {
-            if !token.isEmpty, let v = Double(token) { numbers.append(CGFloat(v)) }
-            token = ""
-        }
-        for ch in data {
-            if "MLHVCZ".contains(ch) {
-                flush()
-                if let current { out.append((current, numbers)) }
-                current = ch
-                numbers = []
-            } else if ch == " " || ch == "," {
-                flush()
-            } else if ch == "-" && !token.isEmpty {
-                flush()
-                token = "-"
-            } else {
-                token.append(ch)
-            }
-        }
-        flush()
-        if let current { out.append((current, numbers)) }
-        return out
-    }()
 }
 
 /// Wrong address, said without a dialog: the field shivers and stops.

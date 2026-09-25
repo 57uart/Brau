@@ -203,15 +203,14 @@ final class Links: NSObject, NSApplicationDelegate {
         _ = NSApp.delegate?.applicationOpenUntitledFile?(NSApp)
     }
 
-    /// ⌘⇧F, the Help menu, and the About page all come here: a draft, in
-    /// Mail, that already knows what build this is. The person still reads
-    /// it and presses send themselves — nothing here sends anything.
+    /// ⌘⇧F, the Help menu, and the About page all come here: a new GitHub
+    /// issue that already knows what build this is. The person still reads
+    /// it and submits it themselves — nothing here sends anything.
     static func writeFeedback() {
-        var text = URLComponents()
-        text.scheme = "mailto"
-        text.path = "hello@officecommun.com"
+        // A new issue on mnml's repository, with the version already in it.
+        var text = URLComponents(string: "https://github.com/farchanrifai/mnml/issues/new")!
         text.queryItems = [
-            URLQueryItem(name: "subject", value: "mnml feedback — \(Updater.version) (\(Updater.build))"),
+            URLQueryItem(name: "title", value: "mnml feedback — \(Updater.version) (\(Updater.build))"),
             URLQueryItem(name: "body", value: "\n\n—\nmnml \(Updater.version), build \(Updater.build), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"),
         ]
         guard let url = text.url else { return }

@@ -473,15 +473,14 @@ struct SettingsPanel: View {
     private var about: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 14) {
-                Logomark()
-                    .fill(Palette.ink, style: FillStyle(eoFill: true))
-                    .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
-                    .frame(height: 34)
+                Logomark(stacked: true)
+                    .fill(Palette.ink)
+                    .frame(width: 34, height: 34)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("mnml")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Palette.ink)
-                    Text("by Office Commun · version \(Updater.version)")
+                    Text("by farchan, based on Search by Office Commun · version \(Updater.version)")
                         .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                 }
@@ -495,7 +494,7 @@ struct SettingsPanel: View {
                     Switch(on: $prefs.installsUpdates)
                 }
                 Rule()
-                Line("Found something wrong?", "Opens a draft with the version already in it") {
+                Line("Found something wrong?", "Opens a GitHub issue with the version already in it") {
                     Pill("Send Feedback") { Links.writeFeedback() }
                 }
             }
