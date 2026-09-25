@@ -426,8 +426,13 @@ final class KeyRouter {
 
 extension Browser {
     /// Text being typed into — a page's field, or one of the browser's own —
-    /// where keys like ⌘← move the caret instead of the page.
+    /// where keys like ⌘← move the caret instead of the page. The page's own
+    /// word on typing misses a click straight into a frame, and never reaches
+    /// into another site's (an embedded comment box); the web view has an
+    /// input context only while the caret is in something editable, in any
+    /// frame (upstream #293).
     var editingText: Bool {
-        active?.typing == true || NSApp.keyWindow?.firstResponder is NSTextView
+        active?.typing == true || active?.built?.inputContext != nil
+            || NSApp.keyWindow?.firstResponder is NSTextView
     }
 }
