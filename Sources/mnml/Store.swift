@@ -16,9 +16,6 @@ enum Store {
     /// remember a flag is not a safeguard.
     static var testing: Bool {
         if ProcessInfo.processInfo.environment["MNML_PROBE"] != nil { return true }
-        // "mnml Test", the copy ./build.sh release test installs beside the
-        // real one: a test run however it is opened, Finder included.
-        if testCopy { return true }
         return Bundle.main.executablePath?.contains("/.build/") == true
     }
 
@@ -28,8 +25,13 @@ enum Store {
     /// WebKit stores of its own: two sessions testing at once, or a
     /// measurement that needs a browser nobody has installed anything in,
     /// never borrow each other's. Nil for the browser somebody is using.
+    ///
+    /// "mnml Test", the copy ./build.sh release test installs beside the real
+    /// one, has a world of its own too ("mnml (copy)") — but is not a test
+    /// run: it is used with real sign-ins, so none of what a test run lets
+    /// go of (the bench without its consent, made-up passkeys) applies to it.
     static let world: String? = {
-        guard testing else { return nil }
+        guard testing || testCopy else { return nil }
         let asked = (ProcessInfo.processInfo.environment["MNML_PROBE"] ?? "").lowercased()
             .filter { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "-" }
         if asked.isEmpty, testCopy { return "copy" }
@@ -90,7 +92,7 @@ enum Store {
         let support = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let home = support.appendingPathComponent(world.map { "mnml (\($0))" } ?? "mnml", isDirectory: true)
-        if !testing {
+        if world == nil {
             let old = support.appendingPathComponent("Office Browser", isDirectory: true)
             let files = FileManager.default
             if !files.fileExists(atPath: home.path), files.fileExists(atPath: old.path) {
@@ -121,8 +123,10 @@ enum Store {
     /// Settings live apart too: a test that changes what the tabs wear or
     /// where the tabs go must not change yours.
     static let settings: UserDefaults = {
+        // The test copy's standard defaults are already its own: its bundle
+        // id is.
         guard testing else {
-            carryOver(into: .standard)
+            if !testCopy { carryOver(into: .standard) }
             return .standard
         }
         let suite = world == "test" ? "com.farchan.mnml.test" : "com.farchan.mnml.test.\(world ?? "")"
