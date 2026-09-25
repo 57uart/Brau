@@ -12,8 +12,12 @@ import WebKit
 // Mac's keychain; from then on, 1Password's lock screen in the popup is met
 // with Touch ID, and the password is typed in for you.
 //
-// The password is read only after Touch ID (or the Mac's password), as the
-// passwords mnml keeps itself are. Settings › Passwords forgets it.
+// The password is kept in the data protection keychain behind Touch ID (or
+// the Mac's password): macOS itself asks before every read, so nothing —
+// mnml included — gets it without you. That keychain needs the access group
+// only a copy signed with mnml's provisioning profile has; any other copy has
+// nowhere safe to keep it, and there nothing is watched, offered or kept.
+// Settings › Passwords forgets it.
 
 @MainActor
 enum LockKey {
@@ -34,7 +38,8 @@ enum LockKey {
 
     /// Watches a 1Password popup for its lock screen while it is up.
     static func watch(_ web: WKWebView, extensionID: String) {
-        guard extensions.contains(extensionID) else { return }
+        dropUnprotected()
+        guard extensions.contains(extensionID), available else { return }
         var tried = false
         var filledAt: Date?
         Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak web] timer in
@@ -54,14 +59,18 @@ enum LockKey {
                                 forget()
                                 filledAt = nil
                             }
-                            guard !tried, let kept = read() else { return }
+                            guard !tried, kept else { return }
                             tried = true
-                            Vault.prove("unlock 1Password") { ok in
-                                guard ok else { return }
-                                filledAt = Date()
-                                web.evaluateJavaScript(fill(kept))
+                            // macOS asks for Touch ID as the item is read, off
+                            // the main thread: the read waits for the answer.
+                            Task.detached(priority: .userInitiated) {
+                                guard let password = read() else { return }
+                                await MainActor.run {
+                                    filledAt = Date()
+                                    web.evaluateJavaScript(fill(password))
+                                }
                             }
-                        } else if let typed = state["typed"] as? String, !typed.isEmpty, typed != read() {
+                        } else if let typed = state["typed"] as? String, !typed.isEmpty, !kept {
                             // Unlocked by hand, with the password just typed.
                             timer.invalidate()
                             offer(typed)
@@ -122,7 +131,7 @@ enum LockKey {
 
     /// Once, after a password typed by hand unlocked 1Password.
     private static func offer(_ typed: String) {
-        guard !declined, read() == nil else { return }
+        guard !declined, available, !kept else { return }
         let alert = NSAlert()
         alert.messageText = "Unlock 1Password with Touch ID?"
         alert.informativeText = "mnml keeps your 1Password password in this Mac's keychain and types it in for you after Touch ID. Settings › Passwords forgets it."
@@ -138,17 +147,46 @@ enum LockKey {
 
     // MARK: the keychain
 
-    private static var query: [String: Any] {
+    private nonisolated static var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
+         kSecUseDataProtectionKeychain as String: true,
          kSecAttrService as String: Store.testing ? "mnml 1Password unlock (test)" : "mnml 1Password unlock",
          kSecAttrAccount as String: "1Password"]
     }
 
-    static var kept: Bool { read() != nil }
+    /// Whether this copy has somewhere to keep it: the data protection
+    /// keychain, under mnml's own access group. Asked by writing, not by
+    /// reading — without the group a read only says "not found", and it is
+    /// a write that is refused — with an item made and removed at once.
+    static let available: Bool = {
+        let probe: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecUseDataProtectionKeychain as String: true,
+            kSecAttrService as String: "mnml 1Password unlock (probe)",
+            kSecAttrAccount as String: "probe",
+        ]
+        var item = probe
+        item[kSecValueData as String] = Data()
+        let status = SecItemAdd(item as CFDictionary, nil)
+        SecItemDelete(probe as CFDictionary)
+        return status == errSecSuccess || status == errSecDuplicateItem
+    }()
 
-    private static func read() -> String? {
+    /// Whether one is kept. Only its attributes are asked for, which needs
+    /// no Touch ID: the password itself is never read to find out.
+    static var kept: Bool {
+        guard available else { return false }
+        var asked = query
+        asked[kSecReturnAttributes as String] = true
+        return SecItemCopyMatching(asked as CFDictionary, nil) == errSecSuccess
+    }
+
+    /// The password, once macOS has had Touch ID or the Mac's password.
+    /// Blocks while it asks, so never on the main thread.
+    private nonisolated static func read() -> String? {
         var asked = query
         asked[kSecReturnData as String] = true
+        asked[kSecUseOperationPrompt as String] = "unlock 1Password"
         var found: AnyObject?
         guard SecItemCopyMatching(asked as CFDictionary, &found) == errSecSuccess,
               let data = found as? Data else { return nil }
@@ -156,14 +194,31 @@ enum LockKey {
     }
 
     private static func keep(_ password: String) {
+        guard available,
+              let guarded = SecAccessControlCreateWithFlags(
+                nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil
+              )
+        else { return }
         SecItemDelete(query as CFDictionary)
         var item = query
         item[kSecValueData as String] = Data(password.utf8)
         item[kSecAttrLabel as String] = "mnml — 1Password unlock"
+        item[kSecAttrAccessControl as String] = guarded
         SecItemAdd(item as CFDictionary, nil)
     }
 
     static func forget() {
         SecItemDelete(query as CFDictionary)
+        dropUnprotected()
+    }
+
+    /// What earlier builds kept in the login keychain with nothing in front
+    /// of it: removed, not moved — the next unlock by hand offers again.
+    private static func dropUnprotected() {
+        SecItemDelete([
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Store.testing ? "mnml 1Password unlock (test)" : "mnml 1Password unlock",
+            kSecAttrAccount as String: "1Password",
+        ] as CFDictionary)
     }
 }
