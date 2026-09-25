@@ -2,6 +2,8 @@
 
 A minimal web browser for the Mac, built on WebKit.
 
+mnml is a personal project, made for my own use. You're welcome to build it and use it yourself.
+
 mnml is a fork of [Search](https://github.com/driceroland/Search) by [Office Commun](https://officecommun.com), kept in step with it, with a few things added:
 
 - Tab groups in the sidebar, named for you by Apple Intelligence
