@@ -34,10 +34,12 @@ final class Updater: ObservableObject {
     /// was not handed the variable only ever listens to the real site.
     // ponytail: no public feed yet, so updates are off unless MNML_FEED is set.
     // Put mnml's own appcast URL back here once there is one.
-    static let feed: URL? = ProcessInfo.processInfo.environment["MNML_FEED"].flatMap(URL.init(string:))
+    // Only a test run reads it: the browser in use is never pointed at
+    // another feed by how it happened to be started.
+    static let feed: URL? = overridden ? ProcessInfo.processInfo.environment["MNML_FEED"].flatMap(URL.init(string:)) : nil
 
     private static var overridden: Bool {
-        ProcessInfo.processInfo.environment["MNML_FEED"] != nil
+        Store.testing && ProcessInfo.processInfo.environment["MNML_FEED"] != nil
     }
 
     struct Release: Equatable {
