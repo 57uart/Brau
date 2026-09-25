@@ -143,6 +143,8 @@ struct GroupBlock<Row: View>: View {
                     // In ink, always: the wash and the icon carry the colour,
                     // and a coloured name is harder to read.
                     .foregroundStyle(Palette.ink)
+                    .modifier(NameGlow(naming: browser.namingGroups.contains(group.id),
+                                       arrived: browser.namedGroups.contains(group.id)))
                 Image(systemName: group.open ? "chevron.down" : "chevron.right")
                     .font(.system(size: 8.5, weight: .semibold))
                     .foregroundStyle((coloured && group.colour != 0 ? group.tint : Palette.muted).opacity(hovering ? 1 : 0.7))

@@ -114,6 +114,8 @@ struct StripGroup<Pill: View>: View {
                     .fixedSize(horizontal: true, vertical: false)
                     // In ink: the chip's patch carries the colour.
                     .foregroundStyle(Palette.ink)
+                    .modifier(NameGlow(naming: browser.namingGroups.contains(group.id),
+                                       arrived: browser.namedGroups.contains(group.id)))
             }
         }
         .padding(.horizontal, 10)

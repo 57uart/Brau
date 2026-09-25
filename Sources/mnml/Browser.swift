@@ -32,6 +32,10 @@ final class Browser: NSObject, ObservableObject {
     var pageFrame: CGRect = .zero
     /// The group whose name is being typed.
     @Published var renamingGroup: TabGroup.ID?
+    /// Groups whose name the Mac's model is writing, and those whose name
+    /// has just come, for the moment it takes to arrive (GroupNamer, NameGlow).
+    @Published var namingGroups: Set<TabGroup.ID> = []
+    @Published var namedGroups: Set<TabGroup.ID> = []
     private var settling = false
 
     /// The row put back in its blocks after any change to it or to the

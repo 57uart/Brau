@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Foundation
 
 // Tab groups, as Dia has them in its column: a named, coloured bundle of tabs
@@ -226,7 +227,27 @@ extension Browser {
         groups.append(group)
         arrange(row)
         self.chosen = []
-        renamingGroup = group.id
+        // Named by the Mac's model where there is one (GroupNamer); if it
+        // has nothing to say, or there is none, the field to type a name.
+        guard GroupNamer.available else {
+            renamingGroup = group.id
+            return group.id
+        }
+        let pages = joining.map { (title: $0.label, site: $0.address?.host() ?? "") }
+        namingGroups.insert(group.id)
+        Task { @MainActor [weak self] in
+            let name = await GroupNamer.name(for: pages)
+            self?.namingGroups.remove(group.id)
+            // Named some other way meanwhile — typed, or for its site — it keeps that.
+            guard let self, self.group(group.id)?.name == "New Group", self.renamingGroup != group.id else { return }
+            if let name {
+                self.rename(group.id, to: name)
+                self.namedGroups.insert(group.id)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in self?.namedGroups.remove(group.id) }
+            } else {
+                self.renamingGroup = group.id
+            }
+        }
         return group.id
     }
 
