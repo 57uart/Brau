@@ -4,12 +4,12 @@
 # fetches.
 #
 #   ./build.sh                 debug-free release build, ad-hoc signed: runs here
-#   ./build.sh release install + quits mnml, puts it in /Applications and opens
+#   ./build.sh release install + quits Brau, puts it in /Applications and opens
 #                                it again — 1Password trusts browsers only there
-#   ./build.sh release test    the same as "mnml Test" (com.farchan.mnml.test),
+#   ./build.sh release test    the same as "Brau Test" (com.57uart.brau.test),
 #                                a copy with its own tabs, settings, sign-ins
 #                                and extensions, beside the one in daily use
-#   ./build.sh release dmg     + build/mnml.dmg, build/mnml.zip and
+#   ./build.sh release dmg     + build/Brau.dmg, build/Brau.zip and
 #                                build/appcast.json, signed with Developer ID
 #                                if there is one in the keychain
 #   ./build.sh release ship    + both notarised, the DMG stapled
@@ -26,10 +26,10 @@
 #
 # What "ship" needs, once:
 #   - a Developer ID Application certificate in the login keychain
-#     (MNML_SIGN_IDENTITY names it; otherwise the first one found is used)
+#     (BRAU_SIGN_IDENTITY names it; otherwise the first one found is used)
 #   - a notarytool profile: xcrun notarytool store-credentials "search"
-#     (MNML_NOTARY_PROFILE names it; default "mnml")
-#   - MNML_DOWNLOAD_URL, the https folder the three files are served from,
+#     (BRAU_NOTARY_PROFILE names it; default "Brau")
+#   - BRAU_DOWNLOAD_URL, the https folder the three files are served from,
 #     for the appcast. Default https://officecommun.com/search, which is
 #     where Updater.feed in Updater.swift looks.
 #
@@ -41,14 +41,14 @@ set -euo pipefail
 cd "$(dirname "$0")"
 CONFIG="${1:-release}"
 STEP="${2:-app}"
-APP="build/mnml.app"
-NAME="mnml"
-DISPLAY_NAME="mnml"
-BUNDLE_ID="com.farchan.mnml"
+APP="build/Brau.app"
+NAME="Brau"
+DISPLAY_NAME="Brau"
+BUNDLE_ID="com.57uart.brau"
 if [ "$STEP" = "test" ]; then
-  APP="build/mnml Test.app"
-  DISPLAY_NAME="mnml Test"
-  BUNDLE_ID="com.farchan.mnml.test"
+  APP="build/Brau Test.app"
+  DISPLAY_NAME="Brau Test"
+  BUNDLE_ID="com.57uart.brau.test"
 fi
 VERSION="$(tr -d '[:space:]' < VERSION)"
 # A build number that only ever goes up, so the updater can tell newer from
@@ -59,7 +59,7 @@ BUILD="$(date +%Y%m%d%H%M)"
 MINIMUM="14.0"
 
 swift build -c "$CONFIG"
-BINARY=".build/$CONFIG/mnml"
+BINARY=".build/$CONFIG/Brau"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -70,7 +70,7 @@ cp "$BINARY" "$APP/Contents/MacOS/$NAME"
 # what the app weighed (6.5 MB of binary, 2.7 without them), and nothing the
 # app reads while it runs. They are kept beside the build instead, as a dSYM
 # that turns the addresses in a crash report back into names (Console, or
-# atos -o build/mnml.app.dSYM/Contents/Resources/DWARF/mnml).
+# atos -o build/Brau.app.dSYM/Contents/Resources/DWARF/Brau).
 if [ "$CONFIG" = "release" ]; then
   rm -rf "$APP.dSYM"
   dsymutil "$BINARY" -o "$APP.dSYM" 2>/dev/null || echo "no dSYM this time" >&2
@@ -100,7 +100,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>$MINIMUM</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
-  <key>NSHumanReadableCopyright</key><string>© Office Commun · mnml</string>
+  <key>NSHumanReadableCopyright</key><string>© Office Commun · Brau</string>
   <key>NSHighResolutionCapable</key><true/>
   <!-- Owning http and https is what sends a link clicked in Mail here.
        Appearing in Desktop & Dock → Default web browser also needs the
@@ -123,7 +123,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     </dict>
     <!-- macOS only lists an app under Desktop & Dock → Default web browser
          when it claims public.xhtml as well as public.html. http and https
-         alone, which Search already had, are not enough. -->
+         alone, which Brau already had, are not enough. -->
     <dict>
       <key>CFBundleTypeName</key><string>XHTML page</string>
       <key>CFBundleTypeRole</key><string>Viewer</string>
@@ -139,9 +139,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
        still wants a sentence to put in its own prompt, and touching the APIs
        without one is a crash rather than a refusal. -->
   <key>NSCameraUsageDescription</key>
-  <string>Websites you visit can ask to use your camera. mnml asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
+  <string>Websites you visit can ask to use your camera. Brau asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Websites you visit can ask to use your microphone. mnml asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
+  <string>Websites you visit can ask to use your microphone. Brau asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
   <key>NSDownloadsFolderUsageDescription</key>
   <string>Files you download are saved to your Downloads folder.</string>
 </dict>
@@ -154,17 +154,17 @@ PLIST
 # which the updater refuses to swap anything in under. Failing a Developer
 # ID, a free Apple Development certificate: it still carries a team ID, which
 # 1Password needs before it will talk to a browser.
-IDENTITY="${MNML_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
+IDENTITY="${BRAU_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
   | grep -o -e '"Developer ID Application: [^"]*"' -e '"Apple Development: [^"]*"' \
   | sort -r | head -1 | tr -d '"' || true)}"
 # Passkeys need an entitlement Apple grants to browsers on request, and a
 # Developer ID provisioning profile that carries it. With the profile next to
 # this script, both go in; without it, the app is signed as before, because
 # a restricted entitlement with no profile behind it is an app that won't open.
-ENTITLEMENTS="mnml.entitlements"
-if [ -f "mnml.provisionprofile" ]; then
-  cp "mnml.provisionprofile" "$APP/Contents/embedded.provisionprofile"
-  ENTITLEMENTS="mnml.passkeys.entitlements"
+ENTITLEMENTS="Brau.entitlements"
+if [ -f "Brau.provisionprofile" ]; then
+  cp "Brau.provisionprofile" "$APP/Contents/embedded.provisionprofile"
+  ENTITLEMENTS="Brau.passkeys.entitlements"
   echo "passkeys: profile embedded"
 fi
 if [ -n "$IDENTITY" ]; then
@@ -181,7 +181,7 @@ echo "built: $APP ($VERSION, build $BUILD)"
 [ "$STEP" = "app" ] && exit 0
 
 # macOS keeps the icon it first saw for an app at a path; a new one put
-# there went unnoticed (⌘Tab showed Search's S after mnml's own). Touched and
+# there went unnoticed (⌘Tab kept showing the icon before it). Touched and
 # registered again, it is read afresh — and the copy in build/, which shares
 # the bundle id, is forgotten, so nothing picks it by mistake.
 fresh_icon() {
@@ -200,33 +200,33 @@ quit_running() {
 }
 
 if [ "$STEP" = "test" ]; then
-  quit_running com.farchan.mnml.test
+  quit_running com.57uart.brau.test
   for _ in $(seq 1 150); do  # up to 30 s: a big session takes a while to save
-    pgrep -f "/Applications/mnml Test.app/Contents/MacOS/$NAME" >/dev/null || break
+    pgrep -f "/Applications/Brau Test.app/Contents/MacOS/$NAME" >/dev/null || break
     sleep 0.2
   done
-  if pgrep -f "/Applications/mnml Test.app/Contents/MacOS/$NAME" >/dev/null; then
-    echo "mnml Test didn't quit — close any dialog in it (or quit it), then run this again" >&2
+  if pgrep -f "/Applications/Brau Test.app/Contents/MacOS/$NAME" >/dev/null; then
+    echo "Brau Test didn't quit — close any dialog in it (or quit it), then run this again" >&2
     exit 1
   fi
-  rm -rf "/Applications/mnml Test.app"
-  ditto "$APP" "/Applications/mnml Test.app"
-  fresh_icon "/Applications/mnml Test.app"
-  open "/Applications/mnml Test.app"
-  echo "installed: /Applications/mnml Test.app"
+  rm -rf "/Applications/Brau Test.app"
+  ditto "$APP" "/Applications/Brau Test.app"
+  fresh_icon "/Applications/Brau Test.app"
+  open "/Applications/Brau Test.app"
+  echo "installed: /Applications/Brau Test.app"
   exit 0
 fi
 
 if [ "$STEP" = "install" ]; then
   # Quit the way ⌘Q does, so the session is saved and comes back.
-  quit_running com.farchan.mnml
-  # A dialog left open in mnml keeps it from quitting; say so rather than wait for ever.
+  quit_running com.57uart.brau
+  # A dialog left open in Brau keeps it from quitting; say so rather than wait for ever.
   for _ in $(seq 1 150); do  # up to 30 s: a big session takes a while to save
     pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null || break
     sleep 0.2
   done
   if pgrep -f "/Applications/$NAME.app/Contents/MacOS/$NAME" >/dev/null; then
-    echo "mnml didn't quit — close any dialog in it (or quit it), then run this again" >&2
+    echo "Brau didn't quit — close any dialog in it (or quit it), then run this again" >&2
     exit 1
   fi
   rm -rf "/Applications/$NAME.app"
@@ -281,7 +281,7 @@ echo "packed: $ZIP"
 
 # What the updater reads. The first paragraph of NOTES.md, with the two
 # characters JSON minds escaped, is the line under the version in Settings.
-BASE="${MNML_DOWNLOAD_URL:-https://officecommun.com/search}"
+BASE="${BRAU_DOWNLOAD_URL:-https://officecommun.com/search}"
 BASE="${BASE%/}"
 NOTES=""
 if [ -f NOTES.md ]; then
@@ -307,7 +307,7 @@ echo "wrote: build/appcast.json ($VERSION, build $BUILD)"
 # is fetched by an app that already trusts it, and is left as hashed.
 [ -z "$IDENTITY" ] && { echo "can't ship without a Developer ID certificate" >&2; exit 1; }
 for FILE in "$DMG" "$ZIP"; do
-  xcrun notarytool submit "$FILE" --keychain-profile "${MNML_NOTARY_PROFILE:-mnml}" --wait
+  xcrun notarytool submit "$FILE" --keychain-profile "${BRAU_NOTARY_PROFILE:-Brau}" --wait
 done
 xcrun stapler staple "$DMG"
 echo "shipped: $DMG, $ZIP and build/appcast.json — ./publish.sh <folder> puts them on the site"

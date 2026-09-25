@@ -1,5 +1,5 @@
-// The app's icon, drawn rather than exported: mnml's mark — F in Morse,
-// ··–· (Logomark in Design.swift, the same proportions) — near-black on a
+// The app's icon, drawn rather than exported: Brau's mark — B in Morse,
+// –··· (Logomark in Design.swift, the same proportions) — near-black on a
 // white plate. A Dock icon has to be an opaque square whether the mark wants
 // a background or not.
 
@@ -14,7 +14,7 @@ let paper = NSColor.white
 /// The mark (see Logomark): dots 90 across, a dash of 270, 45 between —
 /// `fraction` of the plate wide and centred on it.
 func mark(in plate: NSRect, fraction: CGFloat) {
-    let parts: [CGFloat] = [90, 90, 270, 90]
+    let parts: [CGFloat] = [270, 90, 90, 90]
     let width = parts.reduce(0, +) + 45 * CGFloat(parts.count - 1)
     let scale = plate.width * fraction / width
     let h = 90 * scale

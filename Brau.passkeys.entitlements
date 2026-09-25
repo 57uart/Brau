@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- The hardened runtime refuses the camera and the microphone unless the
+       app says up front that pages may ask for them. -->
+  <key>com.apple.security.device.camera</key><true/>
+  <key>com.apple.security.device.audio-input</key><true/>
+  <!-- Passkeys, for any site. Apple grants this to browsers on request; it
+       only works with the matching Developer ID provisioning profile
+       embedded in the app, which build.sh does when Brau.provisionprofile
+       is next to it. The two identifiers are how macOS ties the app to that
+       profile: without them the restricted entitlement is refused.
+       YOURTEAMID is a stand-in: put your own Apple team ID here, with a
+       profile issued to it for com.57uart.brau. Until then this file is
+       never used (build.sh only reaches for it beside a profile). -->
+  <key>com.apple.application-identifier</key><string>YOURTEAMID.com.57uart.brau</string>
+  <key>com.apple.developer.team-identifier</key><string>YOURTEAMID</string>
+  <key>com.apple.developer.web-browser.public-key-credential</key><true/>
+</dict>
+</plist>

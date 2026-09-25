@@ -45,7 +45,7 @@ func draw() {
     line.stroke()
 
     // What to do, once, under the names the Finder writes.
-    let words = "Drag mnml into Applications to install it"
+    let words = "Drag Brau into Applications to install it"
     let attributes: [NSAttributedString.Key: Any] = [
         .font: NSFont.systemFont(ofSize: 13),
         .foregroundColor: muted,
