@@ -78,12 +78,20 @@ enum Swipe {
         return false;
       }
 
-      window.addEventListener('wheel', function (e) {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-        var t = taken(e), now = Date.now();
+      function say(t) {
+        var now = Date.now();
         if (t === was && now - said < 100) return;
         was = t; said = now;
         window.webkit.messageHandlers.officeScroll.postMessage({ side: t ? 'taken' : 'free' });
+      }
+
+      window.addEventListener('wheel', function (e) {
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        say(taken(e));
+        // A page that scrolls itself — Google Sheets' grid — takes the wheel
+        // with preventDefault, which is known only once its own listeners
+        // have run.
+        setTimeout(function () { if (e.defaultPrevented) say(true); }, 0);
       }, { passive: true, capture: true });
     })();
     """

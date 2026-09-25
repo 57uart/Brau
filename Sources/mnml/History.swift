@@ -24,7 +24,8 @@ struct Suggestion: Identifiable, Equatable {
         case search
     }
 
-    var id: String { key }
+    /// An open page by its tab: two tabs can share a title.
+    var id: String { tab?.uuidString ?? key }
 }
 
 private struct Visit: Codable {
