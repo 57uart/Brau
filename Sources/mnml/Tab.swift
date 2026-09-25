@@ -371,6 +371,10 @@ final class Tab: ObservableObject, Identifiable {
     /// is all you need for the five or six pages you keep open all day.
     @Published var pin: String?
 
+    /// Where a pinned tab, or one in a pinned group, was when it was pinned:
+    /// its home, to come back to after wandering off (PinnedHome.swift).
+    @Published var home: URL?
+
     /// The tab group it is in, if any (Groups.swift).
     @Published var group: UUID?
 

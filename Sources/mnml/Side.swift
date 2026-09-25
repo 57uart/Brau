@@ -954,13 +954,15 @@ private struct PinSquare: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous))
         .modifier(OneClick(double: live) {
+            // Double-clicked after wandering off: home (PinnedHome.swift).
+            if tab.strayed, NSApp.currentEvent?.clickCount == 2 { browser.goHome(tab); return }
             if live { browser.editLetter(tab) } else { browser.select(tab) }
         })
         // Put down, like ⌘W: close() is what knows a pin isn't removed.
         .overlay { MiddleClick { browser.close(tab) } }
         .onHover { hovering = $0 }
         .contextMenu { TabMenu(browser: browser, tab: tab, close: { browser.close(tab) }) }
-        .help(tab.label)
+        .help(tab.strayed ? "\(tab.label) — double-click to go back to the pinned page" : tab.label)
         .animation(Motion.quick, value: hovering)
         .transition(.scale(scale: 0.8).combined(with: .opacity))
     }
@@ -979,6 +981,8 @@ struct SideRow: View {
     @State private var shake: CGFloat = 0
     /// The row in the window, for its preview to open beside (TabPreview).
     @State private var spot: CGRect = .zero
+    /// The pointer on the way home: the icon of a wandered-off pinned tab.
+    @State private var homeHover = false
 
     private var editing: Bool { browser.editingTab == tab.id }
     /// Something laid over the end of the title: the cross, the ring, the speaker.
@@ -993,7 +997,43 @@ struct SideRow: View {
                 TabAddressField(browser: browser)
                     .frame(height: 16)
             } else {
-                if prefs.glyph == .icons, !tab.isBlank {
+                if tab.pin == nil, tab.strayed {
+                    // In a pinned group and wandered off: the icon and a "/",
+                    // which take it home, as in Dia (PinnedHome.swift).
+                    // Under the pointer the icon turns into the way back, on
+                    // a small plate, so it reads as a button.
+                    HStack(spacing: 5) {
+                        if homeHover {
+                            Image(systemName: "arrow.uturn.backward")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Palette.ink)
+                                .frame(width: 15, height: 15)
+                        } else if prefs.glyph == .icons {
+                            Mark(icon: tab.icon, letter: tab.monogram, size: 15)
+                        }
+                        Text("/")
+                            .font(.system(size: 13, weight: .light))
+                            .foregroundStyle(homeHover ? Palette.ink : Palette.muted)
+                    }
+                    .padding(.horizontal, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(homeHover ? Palette.hover : .clear)
+                            .padding(.vertical, -3)
+                    )
+                    .padding(.horizontal, -3)
+                    .contentShape(Rectangle())
+                    .onTapGesture { browser.goHome(tab) }
+                    .onHover { over in
+                        homeHover = over
+                        if over { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
+                    // Gone from under the pointer — a click took it home —
+                    // the hand goes with it.
+                    .onDisappear { if homeHover { homeHover = false; NSCursor.pop() } }
+                    .animation(Motion.quick, value: homeHover)
+                    .help("Back to Pinned URL")
+                } else if prefs.glyph == .icons, !tab.isBlank {
                     Mark(icon: tab.icon, letter: tab.monogram, size: 15)
                 }
                 if tab.bench {

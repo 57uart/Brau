@@ -15,6 +15,8 @@ enum Session {
         var name: String?
         /// The right half of a split with the entry before it.
         var split: Bool?
+        /// The pinned URL (Tab.home).
+        var home: String?
     }
 
     struct Shape: Codable {

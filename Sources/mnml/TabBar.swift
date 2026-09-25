@@ -800,7 +800,11 @@ private struct TabPill: View {
             if !pinned, flags.contains(.command) { browser.toggleChosen(tab); return }
             if !pinned, flags.contains(.shift) { browser.chooseRange(to: tab); return }
             browser.chosen = []
-            if live && pinned {
+            // A double-click on a pinned square that has wandered off takes
+            // it home (PinnedHome.swift); on one that hasn't, edits its letter.
+            if pinned, tab.strayed, NSApp.currentEvent?.clickCount == 2 {
+                browser.goHome(tab)
+            } else if live && pinned {
                 browser.editLetter(tab)
             } else if live && !pinned {
                 browser.beginTabEdit(tab)
@@ -811,7 +815,7 @@ private struct TabPill: View {
         .overlay { MiddleClick(act: close) }
         .onHover { hovering = $0 }
         .contextMenu { TabMenu(browser: browser, tab: tab, close: close) }
-        .help(pinned || compact ? tab.label : "")
+        .help(pinned && tab.strayed ? "\(tab.label) — double-click to go back to the pinned page" : (pinned || compact ? tab.label : ""))
         .animation(Motion.quick, value: hovering)
         .animation(Motion.glide, value: editing)
         .animation(Motion.glide, value: tab.pin)
@@ -1174,6 +1178,16 @@ struct TabMenu: View {
             if targets.contains(where: { $0.group != nil }) {
                 Button("Remove from Group") { withAnimation(Motion.settle) { browser.ungroup(targets) } }
             }
+        }
+        if tab.home != nil {
+            Divider()
+            Menu("Edit Pinned Page") {
+                Button("Replace Pinned URL with Current") { browser.makeHome(tab) }
+                    .disabled(!tab.strayed)
+                Button("Edit…") { browser.editHome(tab) }
+            }
+            Button("Back to Pinned URL") { browser.goHome(tab) }
+                .disabled(!tab.strayed)
         }
         Divider()
         Button("Rename") { browser.beginTabRename(tab) }

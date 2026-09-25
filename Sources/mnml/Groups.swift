@@ -331,6 +331,7 @@ extension Browser {
     func setIcon(_ id: TabGroup.ID, _ icon: TabGroup.Icon) { change(id) { $0.icon = icon } }
     func setPinned(_ id: TabGroup.ID, _ pinned: Bool) {
         change(id) { $0.pinned = pinned }
+        settleHomes()
     }
 
     /// The tabs stay; the group goes.

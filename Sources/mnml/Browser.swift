@@ -50,6 +50,7 @@ final class Browser: NSObject, ObservableObject {
         for item in ordered where byID[item.id]?.group != item.group { byID[item.id]?.group = item.group }
         if ordered.map(\.id) != tabs.map(\.id) { tabs = ordered.compactMap { byID[$0.id] } }
         if settled != groups { groups = settled }
+        settleHomes()
     }
 
     /// The row in a new order, for the group actions; settled on the way in.
@@ -625,6 +626,7 @@ final class Browser: NSObject, ObservableObject {
     var pinnedCount: Int { tabs.filter { $0.pin != nil }.count }
 
     func pin(_ tab: Tab) {
+        defer { settleHomes() }
         if tab.pin == nil {
             tab.pin = tab.monogram
             // Pinned tabs live at the head of the row, in the order they were
@@ -671,6 +673,7 @@ final class Browser: NSObject, ObservableObject {
     func unpin(_ tab: Tab) {
         if editingPin == tab.id { editingPin = nil }
         tab.pin = nil
+        defer { settleHomes() }
         defer { writeSession(now: true) }
         // Back out of the pinned block, to the head of the loose tabs.
         if let here = tabs.firstIndex(where: { $0.id == tab.id }) {
@@ -984,6 +987,7 @@ final class Browser: NSObject, ObservableObject {
             prepare(tab)
             tab.restore(url: url, title: entry.title, name: entry.name)
             tab.pin = entry.pin
+            tab.home = entry.home.flatMap(URL.init(string:))
             tab.group = entry.group
             if entry.split == true { tab.partner = tabs.last?.id }
             tabs.append(tab)
@@ -1145,7 +1149,7 @@ final class Browser: NSObject, ObservableObject {
             written.append(tab.id)
             return Session.Entry(
                 url: url.absoluteString, title: tab.title, pin: tab.pin, group: tab.group, name: tab.name,
-                split: split ? true : nil
+                split: split ? true : nil, home: tab.home?.absoluteString
             )
         }
         Session.write(
@@ -1628,6 +1632,7 @@ final class Browser: NSObject, ObservableObject {
             prepare(tab)
             tab.restore(url: url, title: entry.title, name: entry.name)
             tab.pin = entry.pin
+            tab.home = entry.home.flatMap(URL.init(string:))
             if entry.split == true { tab.partner = row.last?.id }
             row.append(tab)
         }
