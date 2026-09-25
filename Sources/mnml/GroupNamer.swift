@@ -14,8 +14,9 @@ enum GroupNamer {
         return SystemLanguageModel.default.isAvailable
     }
 
-    /// Two or three words for what the tabs have in common.
-    static func name(for tabs: [(title: String, site: String)]) async -> String? {
+    /// Two or three words for what the tabs have in common, and an emoji
+    /// for it when the model offers a real one.
+    static func name(for tabs: [(title: String, site: String)]) async -> (name: String, emoji: String?)? {
         guard #available(macOS 26, *), SystemLanguageModel.default.isAvailable, !tabs.isEmpty else { return nil }
         let list = tabs.prefix(12).map { "- \($0.title) (\($0.site))" }.joined(separator: "\n")
         let session = LanguageModelSession(instructions: """
@@ -26,8 +27,27 @@ enum GroupNamer {
             keep the place, product or project they name. If the tabs share no one \
             subject, name the broader field they have in common, not the largest part.
             """)
-        guard let reply = try? await session.respond(to: "Tabs:\n\(list)").content else { return nil }
-        return tidy(reply)
+        guard let reply = try? await session.respond(to: "Tabs:\n\(list)").content,
+              let name = tidy(reply)
+        else { return nil }
+        // The emoji from the name, on its own: asked together, the model
+        // settled for a pin for "Japan Travel", or wrote a word ("pointer").
+        let picker = LanguageModelSession(instructions: """
+            Pick the one emoji that best stands for the subject. Prefer the most \
+            specific one over a general symbol: the thing itself for a thing, a \
+            landmark for a city, and a country's flag only when the country itself \
+            is the subject. Reply with the emoji character only.
+            """)
+        let chosen = try? await picker.respond(to: name).content
+        return (name, chosen.flatMap(emoji))
+    }
+
+    /// One emoji, or nil: the model's field can hold words, or several.
+    static func emoji(_ text: String) -> String? {
+        guard let first = text.trimmingCharacters(in: .whitespaces).first,
+              first.unicodeScalars.contains(where: { $0.properties.isEmojiPresentation || $0.value > 0x2100 && $0.properties.isEmoji })
+        else { return nil }
+        return String(first)
     }
 
     /// The model's reply as a name: first line, no quotes or trailing

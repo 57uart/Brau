@@ -236,12 +236,16 @@ extension Browser {
         let pages = joining.map { (title: $0.label, site: $0.address?.host() ?? "") }
         namingGroups.insert(group.id)
         Task { @MainActor [weak self] in
-            let name = await GroupNamer.name(for: pages)
+            let label = await GroupNamer.name(for: pages)
             self?.namingGroups.remove(group.id)
             // Named some other way meanwhile — typed, or for its site — it keeps that.
             guard let self, self.group(group.id)?.name == "New Group", self.renamingGroup != group.id else { return }
-            if let name {
-                self.rename(group.id, to: name)
+            if let label {
+                self.rename(group.id, to: label.name)
+                // Its emoji too, unless an icon was chosen meanwhile.
+                if let emoji = label.emoji, self.group(group.id)?.icon == .stack {
+                    self.setIcon(group.id, .emoji(emoji))
+                }
                 self.namedGroups.insert(group.id)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in self?.namedGroups.remove(group.id) }
             } else {
