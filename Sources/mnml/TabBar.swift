@@ -1210,6 +1210,15 @@ struct TabMenu: View {
         Button("Close Tab", action: close)
         Button("Close Other Tabs") { browser.closeOthers(but: tab) }
             .disabled(browser.tabs.count < 2)
+        let here = browser.tabs.firstIndex { $0.id == tab.id } ?? 0
+        Button(browser.prefs.sidebar ? "Close Tabs Above" : "Close Tabs to the Left") {
+            browser.closeTabs(beside: tab, after: false)
+        }
+        .disabled(tab.pin != nil || !browser.tabs[..<here].contains { $0.pin == nil })
+        Button(browser.prefs.sidebar ? "Close Tabs Below" : "Close Tabs to the Right") {
+            browser.closeTabs(beside: tab, after: true)
+        }
+        .disabled(tab.pin != nil || !browser.tabs.dropFirst(here + 1).contains { $0.pin == nil })
         // ⌘⇧T, and the History menu's Recently Closed, where few think to
         // look for it: here too, where tabs are closed.
         Button("Reopen Closed Tab") { browser.reopen() }

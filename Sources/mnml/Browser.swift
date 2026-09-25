@@ -1331,6 +1331,15 @@ final class Browser: NSObject, ObservableObject {
         select(keep)
     }
 
+    /// The tabs above this one in the row, or below it (left or right across
+    /// the top). Pins are left alone, as by Close Other Tabs.
+    func closeTabs(beside keep: Tab, after: Bool) {
+        guard let here = tabs.firstIndex(where: { $0.id == keep.id }) else { return }
+        let side = after ? Array(tabs[(here + 1)...]) : Array(tabs[..<here])
+        if side.contains(where: { $0.id == activeID }) { select(keep) }
+        for tab in side where tab.pin == nil { close(tab) }
+    }
+
     /// A link let go of over the tabs becomes a tab among them.
     func take(_ providers: [NSItemProvider]) -> Bool {
         var took = false
@@ -2221,6 +2230,15 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         tab.popup = windowFeatures.width != nil || windowFeatures.height != nil
             || windowFeatures.toolbarsVisibility?.boolValue == false
         prepare(tab)
+        // A pinned tab is a place kept, not a start of more tabs: its links
+        // that ask for a new one open in a peek over it (Peek.swift). A
+        // pop-up that asked for a size of its own — a sign-in — stays one.
+        if self.tab(for: webView)?.pin != nil, !tab.popup, peekTab == nil {
+            tab.opener = from
+            if let url = action.request.url { tab.setAddressOptimistically(url) }
+            withAnimation(Motion.settle) { peekTab = tab }
+            return tab.web
+        }
         // Beside the page it came from, and in its group, as open() does.
         if let source = self.tab(for: webView), source.pin == nil { tab.group = source.group }
         tabs.insert(tab, at: placeForNew())
