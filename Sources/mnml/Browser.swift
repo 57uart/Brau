@@ -796,6 +796,8 @@ final class Browser: NSObject, ObservableObject {
         let url: URL
         let title: String
         let index: Int
+        /// The group it was in, to go back into if it is still there.
+        var group: UUID?
 
         var label: String { title.isEmpty ? Address.pretty(url) : title }
     }
@@ -1318,12 +1320,12 @@ final class Browser: NSObject, ObservableObject {
         rememberSession()
     }
 
-    /// Everything but this one. Pinned tabs are put down rather than removed —
-    /// they are not open pages so much as places kept.
+    /// Everything but this one. Pinned tabs are left alone — they are not
+    /// open pages so much as places kept.
     func closeOthers(but keep: Tab) {
         select(keep)
         // The list is read once: closing walks the row and can add to it.
-        for tab in tabs.filter({ $0.id != keep.id }) {
+        for tab in tabs.filter({ $0.id != keep.id && $0.pin == nil }) {
             close(tab)
         }
         select(keep)
@@ -1361,6 +1363,7 @@ final class Browser: NSObject, ObservableObject {
         ghosts.removeAll { $0.id == ghost.id }
         let tab = Tab()
         prepare(tab)
+        if let id = ghost.group, group(id) != nil { tab.group = id }
         leaving()
         tabs.insert(tab, at: min(ghost.index, tabs.count))
         activeID = tab.id
@@ -1371,7 +1374,7 @@ final class Browser: NSObject, ObservableObject {
 
     private func remember(_ tab: Tab, at index: Int) {
         guard !tab.shy, let url = tab.address else { return }
-        ghosts.append(Ghost(url: url, title: tab.title, index: index))
+        ghosts.append(Ghost(url: url, title: tab.title, index: index, group: tab.group))
         if ghosts.count > 12 { ghosts.removeFirst() }
     }
 
@@ -1434,6 +1437,10 @@ final class Browser: NSObject, ObservableObject {
             activeID = tab.id
             editing = false
             typed = ""
+        } else if let activeID {
+            // Opened behind (⌘-click), it is the tab ⌃Tab goes to next.
+            tabSwitcher.record(tab.id)
+            tabSwitcher.record(activeID)
         }
         return tab
     }
@@ -1508,7 +1515,8 @@ final class Browser: NSObject, ObservableObject {
             active.go(to: url)
             editing = false
         } else {
-            open(url, foreground: true)
+            // Where ⌘T puts a new tab, out of any group or pin.
+            place(new: open(url, foreground: true, atEnd: true))
         }
     }
 
@@ -2212,7 +2220,10 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         let tab = Tab(shy: tab(for: webView)?.shy ?? false, configuration: configuration)
         tab.popup = windowFeatures.width != nil || windowFeatures.height != nil
             || windowFeatures.toolbarsVisibility?.boolValue == false
-        adopt(tab)
+        prepare(tab)
+        // Beside the page it came from, and in its group, as open() does.
+        if let source = self.tab(for: webView), source.pin == nil { tab.group = source.group }
+        tabs.insert(tab, at: placeForNew())
         tab.opener = from
         activeID = tab.id
         editing = false
