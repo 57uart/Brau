@@ -169,7 +169,14 @@ final class FormRelay: NSObject, WKScriptMessageHandler {
         typed.push(el);
         if (typed.length > 40) typed.shift();
       }, true);
+      // Google's editors (Docs, Sheets, Slides) save as you type, and their
+      // cell editor and formula bar keep showing text after that: counted, a
+      // sheet typed in once was never put to sleep again. Waking it reloads
+      // what was saved.
+      // ponytail: one host; add others that save as you type if they pile up.
+      var saves = location.hostname === 'docs.google.com';
       function unsaved() {
+        if (saves) return false;
         for (var i = 0; i < typed.length; i++) {
           var el = typed[i];
           if (!el.isConnected) continue;

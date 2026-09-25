@@ -43,6 +43,10 @@ final class TabPreview {
             }
             if let cached = browser.tabSwitcher.preview(for: tab.id, address: address) {
                 show(cached)
+            } else if tab.built != nil {
+                // Live in the background: a snapshot would make its page draw
+                // (see TabSwitcher.capturePreviews). No picture, no card.
+                return
             } else {
                 tab.preview(width: TabPreview.width) { image in
                     // Still wanted: the pointer hasn't moved on meanwhile.

@@ -70,7 +70,8 @@ final class Browser: NSObject, ObservableObject {
             linkStatus.dismiss()
             if let old = oldValue, let tab = tabs.first(where: { $0.id == old }) {
                 tab.touch()
-                if prefs.mruSwitcher { tabSwitcher.rememberPreview(of: tab) }
+                // Kept for ⌃Tab and the column's hover preview alike.
+                tabSwitcher.rememberPreview(of: tab)
             }
             if let activeID, tabs.contains(where: { $0.id == activeID && !$0.bench }) {
                 tabSwitcher.record(activeID)
@@ -810,6 +811,8 @@ final class Browser: NSObject, ObservableObject {
     /// The minute-by-minute look for tabs to put to sleep, and the ear for
     /// macOS saying memory is short. See Sleep.swift.
     var dozing: Timer?
+    /// The size each tab on screen was last warned at (Memory.swift).
+    var memoryWarned: [Tab.ID: UInt64] = [:]
     var pressure: DispatchSourceMemoryPressure?
     /// Downloads still under way. See `keep(_:)`.
     var downloading: [WKDownload] = []

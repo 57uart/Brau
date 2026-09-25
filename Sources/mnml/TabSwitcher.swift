@@ -37,7 +37,10 @@ final class TabSwitcher: ObservableObject {
     func step(eligible: [Tab.ID], current: Tab.ID, backwards: Bool) {
         if candidates.isEmpty {
             let valid = Set(eligible)
-            guard valid.contains(current) else { return }
+            guard valid.contains(current) else {
+                ContentView.log.notice("⌃Tab ignored: the tab on screen isn't in the row")
+                return
+            }
             var seen: Set<Tab.ID> = []
             candidates = Array(([current] + recentIDs + eligible)
                 .filter { id in
@@ -49,6 +52,7 @@ final class TabSwitcher: ObservableObject {
                 }
                 .prefix(10))
             guard candidates.count > 1 else {
+                ContentView.log.notice("⌃Tab ignored: no other tab to go to")
                 candidates = []
                 return
             }
@@ -59,7 +63,13 @@ final class TabSwitcher: ObservableObject {
             return
         }
 
-        guard let selectedID, let index = candidates.firstIndex(of: selectedID) else { return }
+        guard let selectedID, let index = candidates.firstIndex(of: selectedID) else {
+            // A gesture whose ⌃ let-go was never heard: start over.
+            ContentView.log.notice("⌃Tab: a stale gesture was cleared")
+            cancel()
+            step(eligible: eligible, current: current, backwards: backwards)
+            return
+        }
         let next = (index + (backwards ? -1 : 1) + candidates.count) % candidates.count
         self.selectedID = candidates[next]
         show()
@@ -143,7 +153,12 @@ final class TabSwitcher: ObservableObject {
         let token = generation
         let firsts = [selectedID].compactMap { $0 } + candidates.filter { $0 != selectedID }
         let orderedIDs = firsts.flatMap { [$0] + [partnerOf($0)].compactMap { $0 } }
+        // Only pictures that cost no page anything: the tab on screen, and
+        // sleeping tabs, whose picture is kept. A snapshot of a live tab in
+        // the background makes its page process draw — with memory short,
+        // swapped back in, ten at once — and ⌃Tab froze with it.
         let ordered = orderedIDs.compactMap { id in tabs.first { $0.id == id } }
+            .filter { $0.id == current || $0.built == nil }
             .filter { $0.id == current || preview(for: $0.id, address: $0.address) == nil }
         for (index, tab) in ordered.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.04) { [weak self, weak tab] in

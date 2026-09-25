@@ -274,6 +274,7 @@ struct SettingsPanel: View {
     // MARK: - tabs
 
     private var tabs: some View {
+        VStack(alignment: .leading, spacing: 18) {
         Card {
             Line("Tabs in a sidebar", "Down the left instead of across the top. Pull its edge to make it wider; double-click the edge to reset.") {
                 Switch(on: Binding(
@@ -323,13 +324,15 @@ struct SettingsPanel: View {
                 Switch(on: $prefs.showsReading)
             }
             Rule()
-            Line("Sleep tabs you aren't using", "After half an hour away they come back where you left them. Pinned tabs, sound, calls and anything typed stay awake.") {
+            Line("Sleep tabs you aren't using", "After half an hour away, two hours for pinned tabs, and beyond the ten used last; a background page past 2 GB sleeps at once. They come back where you left them. Sound, calls and anything typed stay awake.") {
                 Switch(on: $prefs.sleepsTabs)
             }
             Rule()
             Line("Spaces", "Separate sets of tabs, signed in where the others are or starting afresh, switched with ⌃1–⌃9, two fingers sideways over the column, or the space's icon. Mission Control's own ⌃1–⌃9, if you turned them on, take those keys first.") {
                 Switch(on: $prefs.usesSpaces)
             }
+        }
+        TabMemory(browser: browser)
         }
     }
 
@@ -658,5 +661,36 @@ struct Pill: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .animation(Motion.quick, value: hovering)
+    }
+}
+
+/// The awake tabs, heaviest first, each with what its page holds and a way
+/// to put it to sleep — Chrome's Task Manager, for the tabs (Memory.swift).
+struct TabMemory: View {
+    @ObservedObject var browser: Browser
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 2)) { _ in
+            let rows = (browser.tabs + browser.parkedTabs)
+                .filter { !$0.asleep }
+                .compactMap { tab in tab.footprint.map { (tab, $0) } }
+                .sorted { $0.1 > $1.1 }
+                .prefix(10)
+            Card {
+                Line("Memory", rows.isEmpty ? "No page is open" : "The awake tabs, heaviest first. Tabs that share a page's process each show all of it.") {
+                    EmptyView()
+                }
+                ForEach(Array(rows), id: \.0.id) { tab, size in
+                    Rule()
+                    Line(tab.label, Browser.gigabytes(size)) {
+                        if let why = browser.awake(because: tab) {
+                            Text(why).font(.system(size: 11.5)).foregroundStyle(Palette.muted)
+                        } else {
+                            Pill("Sleep") { browser.sleep(tab) }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

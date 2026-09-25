@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import os
 
 // A window, a row of titles, and a field. Typing an address gets you a page;
 // there is nothing else to learn and nothing else to press.
@@ -1024,8 +1025,29 @@ struct ContentView: View {
     }
 
     private var canSwitchTabs: Bool {
-        guard let window, NSApp.keyWindow === window else { return false }
+        guard let window, NSApp.keyWindow === window else {
+            ContentView.log.notice("⌃Tab ignored: the browser window isn't key (\(NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "none", privacy: .public))")
+            return false
+        }
+        if !nothingOver {
+            ContentView.log.notice("⌃Tab ignored: something is over the page (\(overReasons, privacy: .public))")
+        }
         return nothingOver
+    }
+
+    /// Why ⌃Tab is refused, when it is: read with
+    /// `log show --predicate 'subsystem == "com.farchan.mnml"' --last 1h`.
+    static let log = Logger(subsystem: "com.farchan.mnml", category: "Switcher")
+
+    private var overReasons: String {
+        let flags: [(Bool, String)] = [
+            (browser.tuning, "tuning"), (browser.recalling, "recalling"), (browser.hoarding, "hoarding"),
+            (browser.bookmarking, "bookmarking"), (browser.welcoming, "welcoming"), (browser.managing, "managing"),
+            (browser.reviewing, "reviewing"), (browser.finding, "finding"), (browser.bookmarksOpen, "bookmarksOpen"),
+            (browser.veiling, "veiling"), (browser.summoning, "summoning"), (browser.editingTab != nil, "editingTab"),
+            (browser.asking != nil, "asking"), (browser.offering != nil, "offering"), (browser.suggesting != nil, "suggesting"),
+        ]
+        return flags.filter(\.0).map(\.1).joined(separator: ", ")
     }
 
     /// No panel, field, bar or mode is up over the page.
