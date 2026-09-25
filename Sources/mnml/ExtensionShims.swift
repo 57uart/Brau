@@ -2742,6 +2742,14 @@ enum ExtensionShims {
 
         // MARK: clipboard — an extension page's Copy, written here (see the shim)
         case "clipboard.writeText":
+            // Written without a click, from any of the extension's pages or
+            // its worker: Chrome's clipboardWrite, and only for an extension
+            // that asked for it. Otherwise any extension could put what it
+            // liked on the clipboard whenever it liked — hidden from clipboard
+            // managers too — in place of what you copied.
+            guard allowed(id, context: context).contains("clipboardWrite") else {
+                throw Unsupported(what: "The extension never asked for \u{201C}clipboardWrite\u{201D}")
+            }
             guard let text = first as? String else { throw Unsupported(what: "Nothing to copy") }
             // This Mac only, and marked for clipboard managers to keep out of
             // their history: what password managers copy is secrets.
