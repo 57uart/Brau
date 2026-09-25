@@ -72,6 +72,8 @@ final class ExtensionPopup: NSObject, WKUIDelegate, WKNavigationDelegate, NSPopo
         self.web = web
         self.popover = popover
         extensionID = context.uniqueIdentifier
+        // 1Password's lock screen, met with Touch ID (LockKey.swift).
+        LockKey.watch(web, extensionID: context.uniqueIdentifier)
         button = anchor != nil && anchor === Extensions.shared.anchors[context.uniqueIdentifier]?.view ? anchor : nil
         let page = PopupPage(web: web)
         self.page = page

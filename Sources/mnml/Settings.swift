@@ -364,6 +364,18 @@ struct SettingsPanel: View {
                 ) {
                     Switch(on: $prefs.passkeys)
                 }
+                if LockKey.kept || LockKey.declined {
+                    Rule()
+                    Line("Unlock 1Password with Touch ID",
+                         LockKey.kept ? "Its password is kept in this Mac's keychain and typed in after Touch ID"
+                                      : "Turned down — it will be offered again the next time you unlock 1Password") {
+                        Pill(LockKey.kept ? "Forget" : "Offer again") {
+                            LockKey.forget()
+                            LockKey.declined = false
+                            browser.announce("1Password's password forgotten")
+                        }
+                    }
+                }
                 if !Vault.never.isEmpty {
                     Rule()
                     Line("Sites never asked", "\(Vault.never.count) sites told to stop offering") {
