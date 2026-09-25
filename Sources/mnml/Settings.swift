@@ -13,6 +13,7 @@ struct SettingsPanel: View {
     @ObservedObject private var shield = Shield.shared
     @State private var isDefault = Links.isDefault
     @State private var page: Page = Page(rawValue: Store.settings.string(forKey: "settings.page") ?? "") ?? .general
+    @State private var hovered: Page?
 
     enum Page: String, CaseIterable, Identifiable {
         case general, tabs, shortcuts, extensions, passwords, downloads, privacy, about
@@ -77,10 +78,16 @@ struct SettingsPanel: View {
                 .padding(.top, 14)
                 .padding(.bottom, 12)
             ForEach(Page.allCases) { item in
-                PageRow(page: item, on: page == item) { page = item }
+                PageRow(page: item, on: page == item, hovering: hovered == item) { page = item }
+                    .onHover { inside in
+                        if inside { hovered = item } else if hovered == item { hovered = nil }
+                    }
             }
             Spacer(minLength: 0)
         }
+        // One hovered row for the rail, cleared when the pointer leaves it: a
+        // row's own hover, its exit missed, stayed lit beside the chosen one.
+        .onHover { if !$0 { hovered = nil } }
         .padding(8)
         .frame(width: SettingsPanel.rail, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -90,8 +97,8 @@ struct SettingsPanel: View {
     private struct PageRow: View {
         let page: Page
         let on: Bool
+        let hovering: Bool
         let act: () -> Void
-        @State private var hovering = false
 
         var body: some View {
             Button(action: act) {
@@ -114,8 +121,8 @@ struct SettingsPanel: View {
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
+            // No fade: sweeping down the rail left the row behind still
+            // fading as the next lit, two or three lit at once.
         }
     }
 
