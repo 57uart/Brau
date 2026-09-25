@@ -1121,7 +1121,14 @@ struct SideRow: View {
             if flags.contains(.command) { browser.toggleChosen(tab); return }
             if flags.contains(.shift) { browser.chooseRange(to: tab); return }
             browser.chosen = []
-            if live { browser.beginTabEdit(tab) } else { browser.select(tab) }
+            // The address opens on a double-click, not a single one: a click
+            // meant for a wandered-off tab's way home, missed by a little,
+            // opened the address instead.
+            if live {
+                if NSApp.currentEvent?.clickCount == 2 { browser.beginTabEdit(tab) }
+            } else {
+                browser.select(tab)
+            }
         })
         .overlay { MiddleClick(act: close) }
         .background {

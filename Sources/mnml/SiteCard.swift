@@ -3,7 +3,7 @@ import Combine
 import SecurityInterface
 import SwiftUI
 
-// The site card: what a click on the tab you are on shows under its address,
+// The site card: what a double-click on the tab you are on shows under its address,
 // in the column and in the bar across the top alike — whether the connection
 // is private, and the few things that belong to the page (copy its address,
 // print it, its zoom). Right-click › Site Information… opens the same. It
@@ -124,7 +124,64 @@ enum SiteCardPanel {
         }
     }
 
+    // MARK: - the submenu
+
+    private static var sub: Panel? {
+        didSet { SubmenuState.shared.open = sub != nil }
+    }
+
+    /// A submenu beside the card, level with `row` (its frame in the card,
+    /// top-left based) — opened by hovering, as a menu's is.
+    static func showSub(_ content: AnyView, beside row: CGRect) {
+        guard let panel, let window = panel.parent else { return }
+        hideSub()
+        let host = FirstClick(rootView: AnyView(content.fixedSize()))
+        let size = host.fittingSize
+        let glass = frosted(size)
+        host.frame = glass.bounds
+        host.autoresizingMask = [.width, .height]
+        glass.addSubview(host)
+        let made = Panel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        made.contentView = glass
+        made.isOpaque = false
+        made.backgroundColor = .clear
+        made.hasShadow = true
+        made.hidesOnDeactivate = true
+        // Its first line level with the row, as macOS lines a submenu up.
+        let top = panel.frame.maxY - row.minY + MenuMetrics.pad
+        var origin = NSPoint(x: panel.frame.maxX - 4, y: top - size.height)
+        if let screen = window.screen?.visibleFrame {
+            if origin.x + size.width > screen.maxX - 8 { origin.x = panel.frame.minX - size.width + 4 }
+            origin.y = max(origin.y, screen.minY + 8)
+        }
+        made.setFrameOrigin(origin)
+        window.addChildWindow(made, ordered: .above)
+        sub = made
+    }
+
+    static func hideSub() {
+        guard let sub else { return }
+        sub.parent?.removeChildWindow(sub)
+        sub.orderOut(nil)
+        self.sub = nil
+    }
+
+    /// The menu's frosted ground, with its corners and edge.
+    private static func frosted(_ size: NSSize) -> NSVisualEffectView {
+        let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        glass.material = .menu
+        glass.state = .active
+        glass.wantsLayer = true
+        glass.layer?.cornerRadius = MenuMetrics.corner
+        glass.layer?.cornerCurve = .continuous
+        glass.layer?.masksToBounds = true
+        glass.layer?.borderWidth = 0.5
+        glass.layer?.borderColor = MenuMetrics.edge.cgColor
+        return glass
+    }
+
     static func hide() {
+        hideSub()
         if let resign { NotificationCenter.default.removeObserver(resign) }
         resign = nil
         guard let panel else { return }
@@ -151,6 +208,14 @@ enum SiteCardPanel {
     }
 }
 
+/// Whether the card's submenu is out, so the row it came from stays lit
+/// while the pointer is in it, as a menu's does.
+@MainActor
+final class SubmenuState: ObservableObject {
+    static let shared = SubmenuState()
+    @Published var open = false
+}
+
 /// The site the tab is on: how private the connection is, and the few things
 /// that belong to this page rather than to the browser. The connection's line
 /// goes a step further in, to what it means and the certificate behind it.
@@ -159,8 +224,6 @@ struct SiteCard: View {
     @ObservedObject var tab: Tab
     let close: () -> Void
 
-    /// One step in: the connection, said in full.
-    @State private var deeper: Bool
     /// Whether this Mac trusts the site's certificate. Unknown until it has
     /// been asked, off the main thread: asking can go to the network.
     @State private var certified: Bool?
@@ -169,23 +232,14 @@ struct SiteCard: View {
         self.browser = browser
         self.tab = tab
         self.close = close
-        _deeper = State(initialValue: deeper)
     }
 
     var body: some View {
-        Group {
-            if deeper, let safety {
-                security(safety)
-            } else {
-                front
-            }
-        }
-        .padding(.vertical, MenuMetrics.pad)
-        .frame(minWidth: 180)
-        .fixedSize()
-        .transition(.opacity)
-        .animation(Motion.quick, value: deeper)
-        .onAppear(perform: certify)
+        front
+            .padding(.vertical, MenuMetrics.pad)
+            .frame(minWidth: 180)
+            .fixedSize()
+            .onAppear(perform: certify)
     }
 
     /// The host as a person says it, without the www. A page with no host —
@@ -205,12 +259,24 @@ struct SiteCard: View {
             if let url = tab.address {
                 Header(title: SiteCard.site(url))
             }
+            // Hovered, the connection opens beside the card, as a submenu
+            // does; every other line puts it away.
             if let safety {
-                Row(safety.title, submenu: true) { deeper = true }
+                Row(safety.title, submenu: true, hovered: { over, frame in
+                    guard over else { return }
+                    SiteCardPanel.showSub(AnyView(security(safety).padding(.vertical, MenuMetrics.pad)), beside: frame)
+                }) {}
             }
-            Row("Copy Address", keys: "⇧⌘C") { after { browser.copyAddress() } }
+            Row("Rename Tab…", hovered: { over, _ in if over { SiteCardPanel.hideSub() } }) {
+                after { browser.beginTabRename(tab) }
+            }
+            Row("Copy Address", keys: "⇧⌘C", hovered: { over, _ in if over { SiteCardPanel.hideSub() } }) {
+                after { browser.copyAddress() }
+            }
             Separator()
-            Row("Print…", keys: "⌘P") { after { browser.printPage() } }
+            Row("Print…", keys: "⌘P", hovered: { over, _ in if over { SiteCardPanel.hideSub() } }) {
+                after { browser.printPage() }
+            }
             zoom
         }
     }
@@ -246,9 +312,6 @@ struct SiteCard: View {
 
     private func security(_ safety: Safety) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let url = tab.address {
-                Header(title: SiteCard.site(url))
-            }
             Text(safety.title)
                 .font(MenuMetrics.font)
                 .foregroundStyle(Color(nsColor: .labelColor))
@@ -268,7 +331,6 @@ struct SiteCard: View {
                     after { SiteCard.show(trust) }
                 }
             }
-            Row("Back") { deeper = false }
         }
     }
 
@@ -356,14 +418,24 @@ struct SiteCard: View {
         let title: String
         var keys = ""
         var submenu = false
+        /// Told when the pointer comes and goes, with the row's frame in the
+        /// card (top-left based), for a submenu to line up with.
+        var hovered: ((Bool, CGRect) -> Void)?
         let act: () -> Void
 
         @State private var hovering = false
+        @State private var frame: CGRect = .zero
+        @ObservedObject private var submenuState = SubmenuState.shared
 
-        init(_ title: String, keys: String = "", submenu: Bool = false, act: @escaping () -> Void) {
+        /// Under the pointer, or the row whose submenu is out.
+        private var lit: Bool { hovering || (submenu && submenuState.open) }
+
+        init(_ title: String, keys: String = "", submenu: Bool = false,
+             hovered: ((Bool, CGRect) -> Void)? = nil, act: @escaping () -> Void) {
             self.title = title
             self.keys = keys
             self.submenu = submenu
+            self.hovered = hovered
             self.act = act
         }
 
@@ -371,20 +443,20 @@ struct SiteCard: View {
             HStack(spacing: 0) {
                 Text(title)
                     .font(MenuMetrics.font)
-                    .foregroundStyle(hovering ? Color.white : Color(nsColor: .labelColor))
+                    .foregroundStyle(lit ? Color.white : Color(nsColor: .labelColor))
                     .lineLimit(1)
                     .fixedSize()
                 Spacer(minLength: keys.isEmpty ? 24 : 26)
                 if !keys.isEmpty {
                     Text(keys)
                         .font(MenuMetrics.font)
-                        .foregroundStyle(hovering ? Color.white : Color(nsColor: .secondaryLabelColor))
+                        .foregroundStyle(lit ? Color.white : Color(nsColor: .secondaryLabelColor))
                         .fixedSize()
                 }
                 if submenu {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(hovering ? Color.white : Color(nsColor: .secondaryLabelColor))
+                        .foregroundStyle(lit ? Color.white : Color(nsColor: .secondaryLabelColor))
                 }
             }
             .padding(.leading, MenuMetrics.text - MenuMetrics.inset)
@@ -392,12 +464,22 @@ struct SiteCard: View {
             .frame(height: MenuMetrics.row)
             .background(
                 RoundedRectangle(cornerRadius: MenuMetrics.highlight, style: .continuous)
-                    .fill(hovering ? MenuMetrics.selection : .clear)
+                    .fill(lit ? MenuMetrics.selection : .clear)
             )
             .padding(.horizontal, MenuMetrics.inset)
             .contentShape(Rectangle())
             .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .background {
+                GeometryReader { box in
+                    Color.clear
+                        .onAppear { frame = box.frame(in: .global) }
+                        .onChange(of: box.frame(in: .global)) { _, new in frame = new }
+                }
+            }
+            .onHover { over in
+                hovering = over
+                hovered?(over, frame)
+            }
         }
     }
 

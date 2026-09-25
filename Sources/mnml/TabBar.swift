@@ -807,7 +807,8 @@ private struct TabPill: View {
             } else if live && pinned {
                 browser.editLetter(tab)
             } else if live && !pinned {
-                browser.beginTabEdit(tab)
+                // On a double-click, as in the column.
+                if NSApp.currentEvent?.clickCount == 2 { browser.beginTabEdit(tab) }
             } else {
                 browser.select(tab)
             }
